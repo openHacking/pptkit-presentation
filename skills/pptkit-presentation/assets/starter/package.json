@@ -1,0 +1,31 @@
+{
+  "name": "pptkit-deck",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "extract": "node --import tsx src/extract-sources.ts",
+    "build": "node --import tsx src/build.ts",
+    "verify": "node --import tsx src/verify.ts",
+    "render": "node --import tsx src/render.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pptkit/core": "0.1.8",
+    "@pptkit/pptx-exporter": "0.1.8",
+    "presentation-workflow": "0.1.0",
+    "fflate": "0.8.3",
+    "mammoth": "1.9.1",
+    "officeparser": "7.1.0",
+    "pdfjs-dist": "4.10.38",
+    "xlsx": "0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.3.0",
+    "tsx": "4.23.0",
+    "typescript": "5.9.2"
+  }
+}

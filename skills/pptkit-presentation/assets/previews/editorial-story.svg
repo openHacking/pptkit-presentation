@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc" data-preview-layout="single-slide">
+  <title id="title">Editorial Story theme preview</title>
+  <desc id="desc">A single 16:9 narrative slide with warm paper, serif display typography, asymmetric framing, and terracotta accents.</desc>
+  <rect width="1200" height="675" fill="#FBF7F0"/>
+
+  <text x="62" y="66" font-family="Arial" font-size="15" letter-spacing="3" fill="#766A5E">FIELD NOTE 07 / PPTKIT</text>
+  <text x="1138" y="66" text-anchor="end" font-family="Arial" font-size="14" fill="#766A5E">NARRATIVE RESEARCH</text>
+  <rect x="62" y="92" width="1076" height="1" fill="#2B2118" opacity=".25"/>
+
+  <text x="62" y="190" font-family="Georgia" font-size="63" font-weight="700" letter-spacing="-.8" fill="#2B2118">The details we ignore</text>
+  <text x="62" y="259" font-family="Georgia" font-size="63" font-style="italic" letter-spacing="-.8" fill="#A33C2E">shape the whole story.</text>
+
+  <g transform="translate(62 330)">
+    <rect width="610" height="265" fill="#236A73"/>
+    <circle cx="171" cy="128" r="88" fill="#FFFDFC" opacity=".14"/>
+    <circle cx="422" cy="92" r="42" fill="#FFFDFC" opacity=".09"/>
+    <path d="M52 204 C154 92, 276 264, 397 119 S557 170, 586 61" fill="none" stroke="#FFFDFC" stroke-width="5" opacity=".82"/>
+    <line x1="30" y1="30" x2="96" y2="30" stroke="#FBF7F0" stroke-width="2" opacity=".7"/>
+    <text x="30" y="238" font-family="Arial" font-size="14" letter-spacing="1.2" fill="#FBF7F0">EVIDENCE / PATTERN / CONSEQUENCE</text>
+  </g>
+
+  <g transform="translate(720 330)">
+    <text x="0" y="12" font-family="Arial" font-size="14" font-weight="700" letter-spacing="1.2" fill="#A33C2E">01 — OBSERVATION</text>
+    <text x="0" y="65" font-family="Georgia" font-size="29" font-weight="700" fill="#2B2118">A quieter visual language</text>
+    <text x="0" y="105" font-family="Georgia" font-size="29" font-weight="700" fill="#2B2118">can carry a stronger idea.</text>
+    <text x="0" y="162" font-family="Arial" font-size="18" fill="#766A5E">Asymmetric rhythm, evidence-led imagery,</text>
+    <text x="0" y="191" font-family="Arial" font-size="18" fill="#766A5E">and captions that reward attention.</text>
+    <rect x="0" y="230" width="88" height="5" fill="#A33C2E"/>
+  </g>
+
+  <text x="62" y="642" font-family="Arial" font-size="13" fill="#766A5E">SERIF DISPLAY · NARROW MEASURES · TONAL EDITORIAL SURFACES</text>
+  <text x="1138" y="642" text-anchor="end" font-family="Arial" font-size="14" fill="#766A5E">03 / 12</text>
+</svg>

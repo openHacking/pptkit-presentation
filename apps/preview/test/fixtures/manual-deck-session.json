@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 2,
+  "id": "manual-toolbar-review",
+  "revision": 1,
+  "createdAt": "2026-07-17T00:00:00.000Z",
+  "updatedAt": "2026-07-17T00:00:00.000Z",
+  "deck": {
+    "brief": {
+      "title": "Toolbar Success State Test",
+      "audience": "PPTKit QA",
+      "purpose": "Verify the preview toolbar success state",
+      "language": "en-US",
+      "slideCountRange": [3, 3],
+      "imagePolicy": "No external images",
+      "constraints": []
+    },
+    "design": {
+      "theme": { "id": "clean-business" },
+      "seed": "manual-toolbar-review",
+      "variation": "balanced"
+    },
+    "slides": [
+      {
+        "id": "cover",
+        "role": "cover",
+        "title": "Toolbar Success State",
+        "subtitle": "Manual transfer fixture"
+      },
+      {
+        "id": "review",
+        "role": "process",
+        "title": "What to verify",
+        "steps": [
+          "Saved status stays concise",
+          "Transfer dot is centered",
+          "Findings uses one SVG icon",
+          "Export remains available"
+        ]
+      },
+      {
+        "id": "closing",
+        "role": "closing",
+        "title": "Ready",
+        "message": "The toolbar should now show its clean success state."
+      }
+    ]
+  },
+  "sources": [],
+  "assets": []
+}

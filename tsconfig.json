@@ -1,0 +1,7 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/presentation-workflow" },
+    { "path": "./apps/preview" }
+  ]
+}

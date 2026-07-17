@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>PPTKit Presentation Preview</title>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header class="topbar">
+        <div class="deck-heading">
+          <h1 id="deck-title">PPTKit Preview</h1>
+          <span id="deck-meta"></span>
+        </div>
+
+        <output id="status" class="status-pill" aria-live="polite">Ready</output>
+
+        <div class="topbar-actions">
+          <div id="transfer-shell" class="popover-anchor">
+            <button
+              id="transfer-toggle"
+              class="toolbar-button transfer-toggle"
+              data-testid="pptkit-transfer-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="transfer-panel"
+            >
+              <span class="status-dot" aria-hidden="true"></span>
+              <span id="transfer-toggle-label">Connect</span>
+            </button>
+            <section id="transfer-panel" class="anchored-panel transfer-panel" aria-label="Agent presentation transfer" aria-hidden="true" inert>
+              <div class="panel-heading">
+                <div>
+                  <p class="eyebrow">Agent connection</p>
+                  <h2>Presentation transfer</h2>
+                </div>
+                <button id="transfer-close" class="icon-button" type="button" aria-label="Close presentation transfer">×</button>
+              </div>
+              <textarea
+                id="transfer-input"
+                data-testid="pptkit-transfer-input"
+                spellcheck="false"
+                aria-label="Presentation transfer payload"
+              ></textarea>
+              <button id="transfer-submit" data-testid="pptkit-transfer-submit" type="button">Send part</button>
+              <p id="transfer-error" class="error" role="alert"></p>
+              <div id="transfer-progress" class="transfer-progress" hidden></div>
+              <div class="storage-actions" aria-label="Local preview data">
+                <button id="clear-current" class="storage-action" type="button" disabled>Delete current presentation</button>
+                <button id="clear-all" class="storage-action danger" type="button">Clear all local preview data</button>
+              </div>
+              <output id="preview-bridge" data-testid="pptkit-preview-bridge" hidden></output>
+            </section>
+          </div>
+
+          <div id="findings-shell" class="popover-anchor">
+            <button
+              id="findings-toggle"
+              class="toolbar-button findings-toggle"
+              data-testid="pptkit-findings-toggle"
+              type="button"
+              aria-expanded="false"
+              aria-controls="issues-panel"
+              aria-label="Review findings"
+              hidden
+            >
+              <span class="findings-icon" aria-hidden="true">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path class="findings-mark findings-mark-success" d="m8 12 2.7 2.7L16 9.4"></path>
+                  <g class="findings-mark findings-mark-attention">
+                    <path d="M12 7.5v5.25"></path>
+                    <circle cx="12" cy="16.5" r="1" fill="currentColor" stroke="none"></circle>
+                  </g>
+                </svg>
+              </span>
+              <span id="findings-count" class="count-badge" hidden>0</span>
+            </button>
+            <aside id="issues-panel" class="anchored-panel issues-panel" aria-labelledby="issues-heading" aria-hidden="true" inert>
+              <div class="panel-heading">
+                <h2 id="issues-heading">Review findings</h2>
+                <button id="findings-close" class="icon-button" type="button" aria-label="Close review findings">×</button>
+              </div>
+              <div id="issues"></div>
+            </aside>
+          </div>
+
+          <div class="info-control">
+            <button class="icon-button" type="button" aria-describedby="fidelity-tooltip" aria-label="Preview fidelity information">i</button>
+            <span id="fidelity-tooltip" class="tooltip" role="tooltip">Browser preview. Appearance may vary slightly in PowerPoint.</span>
+          </div>
+
+          <button id="download" class="download-button" type="button" aria-label="Generate &amp; download PPTX" disabled>
+            <span class="download-label-long">Generate &amp; download PPTX</span>
+            <span class="download-label-short" aria-hidden="true">Export PPTX</span>
+          </button>
+        </div>
+      </header>
+
+      <main id="workspace" class="workspace" data-state="empty">
+        <aside id="filmstrip" class="filmstrip" aria-label="Slide navigation" data-pinned="false" hidden>
+          <button
+            id="filmstrip-toggle"
+            class="filmstrip-toggle"
+            data-testid="pptkit-filmstrip-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="filmstrip-surface"
+            aria-label="Show slide thumbnails"
+          >
+            <span class="rail-glyph" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="mobile-filmstrip-label">Slides</span>
+          </button>
+          <div id="filmstrip-surface" class="filmstrip-surface">
+            <div class="filmstrip-heading">
+              <strong>Slides</strong>
+              <span id="filmstrip-count"></span>
+            </div>
+            <div id="thumbnails"></div>
+          </div>
+        </aside>
+
+        <section class="stage-panel" aria-label="Current slide">
+          <div id="stage" class="stage" tabindex="-1"><p>Your slides will appear here.</p></div>
+          <nav class="stage-controls" aria-label="Slide controls">
+            <button id="previous" type="button" class="secondary" disabled aria-label="Previous slide"><span class="chevron-icon chevron-icon-previous" aria-hidden="true"></span></button>
+            <span id="page-status">0 / 0</span>
+            <button id="next" type="button" class="secondary" disabled aria-label="Next slide"><span class="chevron-icon chevron-icon-next" aria-hidden="true"></span></button>
+          </nav>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>

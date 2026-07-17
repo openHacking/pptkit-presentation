@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc" data-preview-layout="single-slide">
+  <title id="title">Swiss Grid theme preview</title>
+  <desc id="desc">A single 16:9 technical slide with a strict modular grid, black typography, one red accent, and a large numeric anchor.</desc>
+  <defs>
+    <pattern id="grid" width="75" height="75" patternUnits="userSpaceOnUse">
+      <path d="M75 0H0V75" fill="none" stroke="#CFC9BE" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="675" fill="#F4F1EA"/>
+  <rect width="1200" height="675" fill="url(#grid)" opacity=".54"/>
+
+  <rect x="50" y="48" width="12" height="12" fill="#E6402B"/>
+  <text x="82" y="60" font-family="Arial" font-size="16" font-weight="700" letter-spacing="2" fill="#111111">PPTKIT / SWISS GRID</text>
+  <text x="1150" y="60" text-anchor="end" font-family="Arial" font-size="14" fill="#5F5A50">SYSTEM PERFORMANCE / 06</text>
+
+  <text x="50" y="177" font-family="Arial" font-size="75" font-weight="900" letter-spacing="-2.5" fill="#111111">SYSTEMS</text>
+  <text x="50" y="251" font-family="Arial" font-size="75" font-weight="900" letter-spacing="-2.5" fill="#E6402B">BECOME</text>
+  <text x="50" y="325" font-family="Arial" font-size="75" font-weight="900" letter-spacing="-2.5" fill="#111111">VISIBLE.</text>
+  <line x1="50" y1="360" x2="500" y2="360" stroke="#111111" stroke-width="3"/>
+  <text x="50" y="404" font-family="Arial" font-size="18" fill="#5F5A50">Instrument the work.</text>
+  <text x="50" y="436" font-family="Arial" font-size="18" fill="#5F5A50">Learn from the signal.</text>
+  <text x="50" y="468" font-family="Arial" font-size="18" fill="#5F5A50">Scale what compounds.</text>
+
+  <g transform="translate(650 126)">
+    <text x="0" y="0" font-family="Arial" font-size="14" font-weight="700" letter-spacing="1.4" fill="#5F5A50">THROUGHPUT / WEEK</text>
+    <text x="0" y="106" font-family="Arial" font-size="98" font-weight="900" letter-spacing="-4" fill="#E6402B">4.2×</text>
+    <rect x="0" y="139" width="450" height="3" fill="#111111"/>
+
+    <text x="0" y="190" font-family="Arial" font-size="13" font-weight="700" fill="#111111">01 / INSTRUMENT</text>
+    <rect x="0" y="207" width="405" height="28" fill="#E6402B"/>
+    <text x="0" y="282" font-family="Arial" font-size="13" font-weight="700" fill="#111111">02 / LEARN</text>
+    <rect x="0" y="299" width="298" height="28" fill="#111111"/>
+    <text x="0" y="374" font-family="Arial" font-size="13" font-weight="700" fill="#111111">03 / SCALE</text>
+    <rect x="0" y="391" width="364" height="28" fill="#5F5A50"/>
+  </g>
+
+  <rect x="50" y="610" width="1100" height="3" fill="#111111"/>
+  <text x="50" y="642" font-family="Arial" font-size="14" font-weight="700" fill="#111111">MODULAR GRID · HIGH CONTRAST · FUNCTIONAL ACCENT</text>
+  <text x="1150" y="642" text-anchor="end" font-family="Arial" font-size="14" fill="#5F5A50">STRICT READING ORDER</text>
+</svg>

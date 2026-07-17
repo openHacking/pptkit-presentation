@@ -1,0 +1,4 @@
+interface:
+  display_name: "PPTKit Presentation"
+  short_description: "Create polished, editable PPTX presentations with PPTKit"
+  default_prompt: "Use $pptkit-presentation to turn my materials into a polished, editable PPTX deck."

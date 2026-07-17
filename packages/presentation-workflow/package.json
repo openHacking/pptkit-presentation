@@ -1,0 +1,39 @@
+{
+  "name": "presentation-workflow",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "Browser-neutral guided presentation workflow contracts and runtime for PPTKit.",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/openHacking/pptkit-presentation.git",
+    "directory": "packages/presentation-workflow"
+  },
+  "homepage": "https://github.com/openHacking/pptkit-presentation#readme",
+  "bugs": {
+    "url": "https://github.com/openHacking/pptkit-presentation/issues"
+  },
+  "dependencies": {
+    "@pptkit/core": "0.1.8",
+    "@xmldom/xmldom": "0.9.10",
+    "fflate": "0.8.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm run build && node --test test/smoke.test.mjs"
+  }
+}

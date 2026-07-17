@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc" data-preview-layout="single-slide">
+  <title id="title">Clean Business theme preview</title>
+  <desc id="desc">A single 16:9 executive slide with strong information axes, restrained blue accents, and an open performance ledger.</desc>
+  <rect width="1200" height="675" fill="#F7F8FA"/>
+  <rect width="14" height="675" fill="#2457D6"/>
+
+  <text x="68" y="62" font-family="Arial" font-size="15" font-weight="700" letter-spacing="2.4" fill="#2457D6">PPTKIT / CLEAN BUSINESS</text>
+  <text x="1132" y="62" text-anchor="end" font-family="Arial" font-size="14" fill="#647083">EXECUTIVE REVIEW · Q3</text>
+  <line x1="68" y1="88" x2="1132" y2="88" stroke="#172033" stroke-opacity=".14"/>
+
+  <text x="68" y="185" font-family="Arial" font-size="61" font-weight="700" letter-spacing="-1.5" fill="#172033">Clarity moves</text>
+  <text x="68" y="249" font-family="Arial" font-size="61" font-weight="700" letter-spacing="-1.5" fill="#172033">decisions forward.</text>
+  <text x="70" y="301" font-family="Arial" font-size="21" fill="#647083">One operating model. Three signals that make momentum visible.</text>
+
+  <g transform="translate(68 370)">
+    <text x="0" y="0" font-family="Arial" font-size="12" font-weight="700" letter-spacing="1.5" fill="#647083">THE DECISION</text>
+    <text x="0" y="51" font-family="Arial" font-size="27" font-weight="700" fill="#172033">Make onboarding</text>
+    <text x="0" y="86" font-family="Arial" font-size="27" font-weight="700" fill="#172033">the growth loop.</text>
+    <line x1="0" y1="116" x2="116" y2="116" stroke="#2457D6" stroke-width="5"/>
+    <text x="0" y="158" font-family="Arial" font-size="16" fill="#647083">Align evidence, ownership, and the next action.</text>
+  </g>
+
+  <g transform="translate(610 350)">
+    <line x1="0" y1="0" x2="522" y2="0" stroke="#2457D6" stroke-width="3"/>
+    <text x="0" y="34" font-family="Arial" font-size="12" font-weight="700" letter-spacing="1.4" fill="#2457D6">PERFORMANCE LEDGER</text>
+    <text x="522" y="34" text-anchor="end" font-family="Arial" font-size="12" fill="#647083">QUARTER OVER QUARTER</text>
+
+    <text x="0" y="89" font-family="Arial" font-size="17" font-weight="700" fill="#172033">Activation</text>
+    <text x="522" y="89" text-anchor="end" font-family="Arial" font-size="29" font-weight="700" fill="#2457D6">+18%</text>
+    <line x1="0" y1="108" x2="522" y2="108" stroke="#172033" stroke-opacity=".12"/>
+
+    <text x="0" y="151" font-family="Arial" font-size="17" font-weight="700" fill="#172033">Retention</text>
+    <text x="522" y="151" text-anchor="end" font-family="Arial" font-size="29" font-weight="700" fill="#172033">72%</text>
+    <line x1="0" y1="170" x2="522" y2="170" stroke="#172033" stroke-opacity=".12"/>
+
+    <text x="0" y="213" font-family="Arial" font-size="17" font-weight="700" fill="#172033">Delivery velocity</text>
+    <text x="522" y="213" text-anchor="end" font-family="Arial" font-size="29" font-weight="700" fill="#172033">3.4×</text>
+  </g>
+
+  <text x="68" y="636" font-family="Arial" font-size="13" fill="#647083">STRONG HIERARCHY · RESTRAINED ACCENTS · OPEN, EDITABLE STRUCTURE</text>
+  <text x="1132" y="636" text-anchor="end" font-family="Arial" font-size="13" font-weight="700" fill="#2457D6">05 / 12</text>
+</svg>
