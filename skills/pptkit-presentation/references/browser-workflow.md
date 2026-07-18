@@ -27,7 +27,7 @@ Use this top-level shape:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "stable-deck-slug",
   "revision": 1,
   "createdAt": "ISO-8601",

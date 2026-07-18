@@ -424,6 +424,18 @@ test("validates session schema and external asset metadata", () => {
   const imageDeck = deck();
   imageDeck.slides.push({ id: "missing-image", role: "image", title: "Missing", image: { assetId: "missing", alt: "Missing" } });
   assert.throws(() => parseDeckSession({ ...session, deck: imageDeck }), /references undeclared asset/);
+  const staleDeck = deck();
+  staleDeck.slides = [
+    { id: "statement", role: "statement", title: "Valid statement", message: "This shape is valid.", sourceRefs: [{ sourceId: "src-old", slideNumbers: [1] }] },
+  ];
+  assert.throws(() => parseDeckSession({ ...session, deck: staleDeck }), /use id, not sourceId/);
+  const staleTableDeck = deck();
+  staleTableDeck.slides = [{ id: "table", role: "table", title: "Old table", table: { columns: ["A"], rows: [["B"]] } }];
+  assert.throws(() => parseDeckSession({ ...session, deck: staleTableDeck }), /use headers, not columns/);
+  const staleComparisonDeck = deck();
+  staleComparisonDeck.slides = [{ id: "comparison", role: "comparison", title: "Old comparison", comparison: { left: { title: "Left", items: [] }, right: { title: "Right", message: "Old shape" } } }];
+  assert.throws(() => parseDeckSession({ ...session, deck: staleComparisonDeck }), /comparison\.left\.heading/);
+  assert.throws(() => parseDeckSession({ ...session, sources: [{ id: "src-old", name: "slides.md", kind: "markdown", slideCount: 6 }] }), /use type, not kind/);
 });
 
 test("package inspection reports invalid bytes instead of throwing", () => {

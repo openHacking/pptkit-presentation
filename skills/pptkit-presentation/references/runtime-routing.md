@@ -23,6 +23,7 @@ The guarded Node initializer requires all of these values and writes them to `ru
 - `browser-check`: `failed` for an attempted browser check or `not-required` for a measured/requested suitability condition;
 - `browser-step`: `setup`, `selection`, `navigation`, `compatibility`, `api-check`, `transfer`, or `user-requirement`, consistent with the reason;
 - `fallback-evidence`: the concrete browser/bridge failure result or user requirement. For Codex setup, selection, or navigation fallback, keep the existing string field and include both labeled results, for example `iab: <step and error>; chrome: <unavailable result, step and error>`; and
+- `iab-evidence` and `chrome-evidence`: required as separate `<step>: <concrete result>` fields for every `browser-check: failed` decision. A missing control in the initial tool list, `not visible`, or `not attempted` is rejected as evidence. These structured fields prevent a free-form summary from silently skipping external Chrome; and
 - `preview-url`: the resolved HTTPS URL, defaulting to the official preview application.
 
 The initializer rejects missing, contradictory, or vague routing evidence before it creates the output directory. Never weaken, patch around, or fabricate this receipt to make initialization proceed.

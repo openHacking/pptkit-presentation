@@ -18,12 +18,15 @@ const fallbackRules = new Map([
   ["unattended-local-output", { browserCheck: "not-required", steps: new Set(["user-requirement"]) }],
   ["strict-office-rendering", { browserCheck: "not-required", steps: new Set(["user-requirement"]) }],
 ]);
+const browserEvidencePattern = /^(setup|selection|navigation|compatibility|api-check|transfer):\s+\S.{8,}$/i;
+const invalidBrowserEvidencePattern = /\b(not attempted|not visible|initial(?:ly)? visible|initial tool list)\b/i;
 
 function usage(message) {
   if (message) process.stderr.write(`${message}\n\n`);
   process.stderr.write(
     "Usage: init-project.mjs --output <directory> --fallback-reason <reason> --fallback-evidence <text> " +
       "--browser-check <failed|not-required> --browser-step <step> [--preview-url <https-url>] " +
+      "[--iab-evidence <step-and-result> --chrome-evidence <step-and-result>] " +
       "[--title <slug>] [--theme <id>] [--no-install]\n",
   );
   process.exit(2);
@@ -40,6 +43,8 @@ function parseArgs(args) {
       arg === "--theme" ||
       arg === "--fallback-reason" ||
       arg === "--fallback-evidence" ||
+      arg === "--iab-evidence" ||
+      arg === "--chrome-evidence" ||
       arg === "--browser-check" ||
       arg === "--browser-step" ||
       arg === "--preview-url"
@@ -63,6 +68,14 @@ function parseArgs(args) {
   }
   if (!options["fallback-evidence"] || options["fallback-evidence"].trim().length < 12) {
     usage("--fallback-evidence must contain a concrete browser failure result or user requirement");
+  }
+  if (fallbackRule.browserCheck === "failed") {
+    for (const channel of ["iab", "chrome"]) {
+      const evidence = options[`${channel}-evidence`];
+      if (!evidence || !browserEvidencePattern.test(evidence.trim()) || invalidBrowserEvidencePattern.test(evidence)) {
+        usage(`--${channel}-evidence must use <step>: <concrete result> and prove that the ${channel} channel was checked`);
+      }
+    }
   }
   const previewUrl = options["preview-url"] ?? previewUrlDefault;
   let parsedPreviewUrl;
@@ -104,6 +117,14 @@ const runtimeDecision = {
     status: options["browser-check"],
     step: options["browser-step"],
     evidence: options["fallback-evidence"].trim(),
+    ...(options["browser-check"] === "failed"
+      ? {
+          channels: {
+            iab: options["iab-evidence"].trim(),
+            chrome: options["chrome-evidence"].trim(),
+          },
+        }
+      : {}),
   },
 };
 writeFileSync(path.join(output, "runtime-decision.json"), `${JSON.stringify(runtimeDecision, null, 2)}\n`);

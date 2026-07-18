@@ -9,6 +9,83 @@ const VARIATIONS = new Set(["restrained", "balanced", "expressive"]);
 const THEMES = new Set(["clean-business", "swiss-grid", "editorial-story"]);
 const DECK_MODES = new Set(["create", "restyle"]);
 const ASSET_ORIGINS = new Set(["user", "source-embedded", "source-slide-preview", "source-slide-crop"]);
+const SLIDE_ROLES = new Set(["cover", "agenda", "section", "statement", "image", "kpi", "comparison", "process", "table", "closing"]);
+const SOURCE_TYPES = new Set(["text", "document", "table", "image"]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function requireString(value: unknown, path: string) {
+  if (typeof value !== "string" || !value.trim()) throw new Error(`${path} requires a non-empty string.`);
+}
+
+function validateSlidePlan(slide: unknown, index: number, assetIds: ReadonlySet<string>) {
+  const path = `deck.slides[${index}]`;
+  if (!isRecord(slide)) throw new Error(`${path} must be an object.`);
+  requireString(slide.id, `${path}.id`);
+  requireString(slide.title, `${path}.title`);
+  if (typeof slide.role !== "string" || !SLIDE_ROLES.has(slide.role)) throw new Error(`${path}.role is unsupported: ${String(slide.role)}.`);
+  if (slide.composition !== undefined && (typeof slide.composition !== "string" || !COMPOSITIONS.has(slide.composition))) throw new Error(`${path}.composition is unsupported: ${String(slide.composition)}.`);
+  if (slide.density !== undefined && (typeof slide.density !== "string" || !DENSITIES.has(slide.density))) throw new Error(`${path}.density is unsupported: ${String(slide.density)}.`);
+  for (const field of ["items", "steps"] as const) {
+    if (slide[field] !== undefined && !isStringArray(slide[field])) throw new Error(`${path}.${field} must be an array of strings.`);
+  }
+  if (slide.role === "agenda" && (!isStringArray(slide.items) || slide.items.length === 0)) throw new Error(`${path}.items is required for role agenda.`);
+  if (slide.role === "statement" && (typeof slide.message !== "string" || !slide.message.trim())) throw new Error(`${path}.message is required for role statement.`);
+  if (slide.role === "process" && (!isStringArray(slide.steps) || slide.steps.length === 0)) throw new Error(`${path}.steps is required for the process role.`);
+  if (slide.role === "kpi") {
+    if (!Array.isArray(slide.kpis) || slide.kpis.length === 0) throw new Error(`${path}.kpis is required for role kpi.`);
+    for (let kpiIndex = 0; kpiIndex < slide.kpis.length; kpiIndex += 1) {
+      const kpi = slide.kpis[kpiIndex];
+      if (!isRecord(kpi)) throw new Error(`${path}.kpis[${kpiIndex}] must be an object.`);
+      requireString(kpi.value, `${path}.kpis[${kpiIndex}].value`);
+      requireString(kpi.label, `${path}.kpis[${kpiIndex}].label`);
+    }
+  }
+  if (slide.role === "comparison") {
+    if (!isRecord(slide.comparison)) throw new Error(`${path}.comparison is required for role comparison.`);
+    for (const side of ["left", "right"] as const) {
+      const column = slide.comparison[side];
+      if (!isRecord(column)) throw new Error(`${path}.comparison.${side} must be an object.`);
+      requireString(column.heading, `${path}.comparison.${side}.heading`);
+      if (!isStringArray(column.items)) throw new Error(`${path}.comparison.${side}.items must be an array of strings.`);
+    }
+  }
+  if (slide.role === "table" && slide.table === undefined && slide.chart === undefined) throw new Error(`${path} requires table or chart data for role table.`);
+  if (slide.table !== undefined) {
+    if (!isRecord(slide.table) || !isStringArray(slide.table.headers) || slide.table.headers.length === 0) throw new Error(`${path}.table.headers must be a non-empty array of strings; use headers, not columns.`);
+    if (!Array.isArray(slide.table.rows) || !slide.table.rows.every(isStringArray)) throw new Error(`${path}.table.rows must be an array of string arrays.`);
+  }
+  if (slide.chart !== undefined) {
+    if (!isRecord(slide.chart) || !isStringArray(slide.chart.categories) || !Array.isArray(slide.chart.series)) throw new Error(`${path}.chart requires categories and series arrays.`);
+    for (let seriesIndex = 0; seriesIndex < slide.chart.series.length; seriesIndex += 1) {
+      const series = slide.chart.series[seriesIndex];
+      if (!isRecord(series)) throw new Error(`${path}.chart.series[${seriesIndex}] must be an object.`);
+      requireString(series.name, `${path}.chart.series[${seriesIndex}].name`);
+      if (!Array.isArray(series.values) || series.values.some((value) => typeof value !== "number" || !Number.isFinite(value))) throw new Error(`${path}.chart.series[${seriesIndex}].values must be an array of finite numbers.`);
+    }
+  }
+  if (slide.image !== undefined) {
+    if (!isRecord(slide.image)) throw new Error(`${path}.image must be an object.`);
+    requireString(slide.image.assetId, `${path}.image.assetId`);
+    requireString(slide.image.alt, `${path}.image.alt`);
+    if (!assetIds.has(slide.image.assetId as string)) throw new Error(`Slide ${String(slide.id)} references undeclared asset ${String(slide.image.assetId)}.`);
+  }
+  if (slide.sourceRefs !== undefined) {
+    if (!Array.isArray(slide.sourceRefs)) throw new Error(`${path}.sourceRefs must be an array.`);
+    for (let referenceIndex = 0; referenceIndex < slide.sourceRefs.length; referenceIndex += 1) {
+      const reference = slide.sourceRefs[referenceIndex];
+      if (!isRecord(reference)) throw new Error(`${path}.sourceRefs[${referenceIndex}] must be an object.`);
+      requireString(reference.id, `${path}.sourceRefs[${referenceIndex}].id; use id, not sourceId`);
+      if (reference.slideNumbers !== undefined && (!Array.isArray(reference.slideNumbers) || reference.slideNumbers.some((number) => !Number.isSafeInteger(number) || (number as number) <= 0))) throw new Error(`${path}.sourceRefs[${referenceIndex}].slideNumbers must contain positive integers.`);
+    }
+  }
+}
 
 export function parseDeckSession(value: string | unknown): DeckSessionV2 {
   const input: unknown = typeof value === "string" ? JSON.parse(value) : value;
@@ -17,9 +94,23 @@ export function parseDeckSession(value: string | unknown): DeckSessionV2 {
   if (candidate.schemaVersion !== SESSION_SCHEMA_VERSION) throw new Error(`Unsupported deck session schema: ${String(candidate.schemaVersion)}.`);
   if (!candidate.id || !candidate.deck || !Array.isArray(candidate.sources) || !Array.isArray(candidate.assets)) throw new Error("Deck session is missing required fields.");
   if (!candidate.deck.design || !candidate.deck.design.seed?.trim()) throw new Error("Deck session requires a non-empty design seed.");
+  if (!candidate.deck.brief || !Array.isArray(candidate.deck.brief.slideCountRange)) throw new Error("Deck session requires a brief with slideCountRange.");
   if (candidate.deck.brief.mode && !DECK_MODES.has(candidate.deck.brief.mode)) throw new Error(`Unsupported deck mode: ${String(candidate.deck.brief.mode)}.`);
   if (!THEMES.has(candidate.deck.design.theme?.id)) throw new Error(`Unsupported theme: ${String(candidate.deck.design.theme?.id)}.`);
   if (!VARIATIONS.has(candidate.deck.design.variation)) throw new Error(`Unsupported design variation: ${String(candidate.deck.design.variation)}.`);
+  const sourceIds = new Set<string>();
+  for (let sourceIndex = 0; sourceIndex < candidate.sources.length; sourceIndex += 1) {
+    const source = candidate.sources[sourceIndex] as unknown;
+    const path = `sources[${sourceIndex}]`;
+    if (!isRecord(source)) throw new Error(`${path} must be an object.`);
+    requireString(source.id, `${path}.id`);
+    requireString(source.name, `${path}.name`);
+    if (!SOURCE_TYPES.has(source.type as string)) throw new Error(`${path}.type must be text, document, table, or image; use type, not kind.`);
+    requireString(source.mimeType, `${path}.mimeType`);
+    if (!isStringArray(source.warnings)) throw new Error(`${path}.warnings must be an array of strings.`);
+    if (sourceIds.has(source.id as string)) throw new Error(`Duplicate source id: ${String(source.id)}.`);
+    sourceIds.add(source.id as string);
+  }
   const assetIds = new Set<string>();
   for (const asset of candidate.assets) {
     if (!asset?.id || !asset.name || !asset.mimeType) throw new Error("Every session asset requires id, name, and mimeType.");
@@ -43,14 +134,7 @@ export function parseDeckSession(value: string | unknown): DeckSessionV2 {
     assetIds.add(asset.id);
   }
   if (!Array.isArray(candidate.deck.slides)) throw new Error("Deck session slides must be an array.");
-  for (const slide of candidate.deck.slides) {
-    if (slide.composition && !COMPOSITIONS.has(slide.composition)) throw new Error(`Unsupported slide composition: ${slide.composition}.`);
-    if (slide.density && !DENSITIES.has(slide.density)) throw new Error(`Unsupported slide density: ${slide.density}.`);
-    if (slide.image && !assetIds.has(slide.image.assetId)) throw new Error(`Slide ${slide.id} references undeclared asset ${slide.image.assetId}.`);
-    for (const reference of slide.sourceRefs ?? []) {
-      if (reference.slideNumbers?.some((number) => !Number.isSafeInteger(number) || number <= 0)) throw new Error(`Slide ${slide.id} has an invalid source slide number.`);
-    }
-  }
+  candidate.deck.slides.forEach((slide, index) => validateSlidePlan(slide, index, assetIds));
   return candidate as DeckSessionV2;
 }
 

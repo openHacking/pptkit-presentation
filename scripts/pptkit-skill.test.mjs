@@ -98,8 +98,17 @@ test("presentation skill requires progressive native interaction and an approval
   assert.match(runtimeRouting, /both Codex browser channels are unavailable[\s\S]*automatically continue with `node-workflow\.md`/i);
   assert.match(runtimeRouting, /do not call `request_user_input` or ask the user to choose a runtime/i);
   assert.match(runtimeRouting, /iab: <step and error>; chrome:/i);
+  assert.match(runtimeRouting, /`iab-evidence` and `chrome-evidence`/i);
+  assert.match(nodeWorkflow, /--iab-evidence <IAB_STEP_AND_RESULT>/i);
+  assert.match(nodeWorkflow, /--chrome-evidence <CHROME_STEP_AND_RESULT>/i);
   assert.match(nodeWorkflow, /enable it next time for a better PPT review experience/i);
   assert.match(designSystem, /sourceRefs.*provenance metadata/is);
+  assert.match(browserWorkflow, /"schemaVersion": 2/);
+  assert.doesNotMatch(browserWorkflow, /"schemaVersion": 1/);
+  assert.match(designSystem, /use `id`, never `sourceId`/i);
+  assert.match(designSystem, /use `headers`, never `columns`/i);
+  assert.match(designSystem, /both sides require `heading` and `items`/i);
+  assert.match(designSystem, /parseDeckSession\(\)/);
   assert.match(designSystem, /46–60 pt/);
   assert.match(designSystem, /hero.*split.*ledger.*timeline/is);
   assert.match(quality, /visible internal source IDs/i);
@@ -252,6 +261,87 @@ test("initializer rejects missing or contradictory runtime-routing evidence befo
     assert.equal(contradictory.status, 2);
     assert.match(contradictory.stderr, /requires --browser-check failed/i);
     assert.equal(existsSync(contradictoryOutput), false);
+
+    const singleChannelOutput = path.join(root, "single-channel");
+    const singleChannel = spawnSync(
+      process.execPath,
+      [
+        initScript,
+        "--output",
+        singleChannelOutput,
+        "--no-install",
+        "--fallback-reason",
+        "preview-navigation-failed",
+        "--browser-check",
+        "failed",
+        "--browser-step",
+        "navigation",
+        "--fallback-evidence",
+        "iab navigation timed out; Chrome was not attempted",
+        "--iab-evidence",
+        "navigation: open timed out after 30 seconds",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(singleChannel.status, 2);
+    assert.match(singleChannel.stderr, /--chrome-evidence/i);
+    assert.equal(existsSync(singleChannelOutput), false);
+
+    const skippedChromeOutput = path.join(root, "skipped-chrome");
+    const skippedChrome = spawnSync(
+      process.execPath,
+      [
+        initScript,
+        "--output",
+        skippedChromeOutput,
+        "--no-install",
+        "--fallback-reason",
+        "preview-navigation-failed",
+        "--browser-check",
+        "failed",
+        "--browser-step",
+        "navigation",
+        "--fallback-evidence",
+        "Both browser channels were summarized as unavailable",
+        "--iab-evidence",
+        "navigation: open timed out after 30 seconds",
+        "--chrome-evidence",
+        "selection: Chrome was not attempted because it was not visible",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(skippedChrome.status, 2);
+    assert.match(skippedChrome.stderr, /prove that the chrome channel was checked/i);
+    assert.equal(existsSync(skippedChromeOutput), false);
+
+    const dualChannelOutput = path.join(root, "dual-channel");
+    const dualChannel = spawnSync(
+      process.execPath,
+      [
+        initScript,
+        "--output",
+        dualChannelOutput,
+        "--no-install",
+        "--fallback-reason",
+        "preview-navigation-failed",
+        "--browser-check",
+        "failed",
+        "--browser-step",
+        "navigation",
+        "--fallback-evidence",
+        "Both browser channels failed while opening the preview URL",
+        "--iab-evidence",
+        "navigation: open timed out after 30 seconds",
+        "--chrome-evidence",
+        "navigation: extension returned connection unavailable",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(dualChannel.status, 0, dualChannel.stderr);
+    assert.deepEqual(JSON.parse(readFileSync(path.join(dualChannelOutput, "runtime-decision.json"), "utf8")).browserCheck.channels, {
+      iab: "navigation: open timed out after 30 seconds",
+      chrome: "navigation: extension returned connection unavailable",
+    });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

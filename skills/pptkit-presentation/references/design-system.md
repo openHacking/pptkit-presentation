@@ -72,6 +72,16 @@ Theme tokens are safety rails, not a page template. Brand adaptation may overrid
 | `table` | Present structured data | `table`, optional `chart` |
 | `closing` | Close with action or takeaway | `message`, optional `items` |
 
+Use the exact `SlidePlan` field shapes below. Do not substitute older or display-oriented names:
+
+- `sourceRefs`: `[{ "id": "source-id", "slideNumbers": [1] }]`; use `id`, never `sourceId`.
+- `comparison`: `{ "left": { "heading": "Before", "items": ["..."] }, "right": { "heading": "After", "items": ["..."] } }`; both sides require `heading` and `items`.
+- `table`: `{ "headers": ["Column A", "Column B"], "rows": [["A1", "B1"]] }`; use `headers`, never `columns`.
+- `kpis`: `[{ "value": "72%", "label": "Retention", "detail": "Optional detail" }]`.
+- `image`: `{ "assetId": "declared-asset-id", "alt": "Description", "fit": "contain" }`.
+
+Every `ExtractedSource` uses `id`, `name`, `mimeType`, `type`, and `warnings`; text sources put extracted text in `content`. Fields such as `kind` and `slideCount` are not part of `DeckSessionV2`. Before transfer, parse the completed file with `parseDeckSession()`; a JSON syntax check alone is insufficient.
+
 ## Density and provenance
 
 - Keep at most six agenda/process items, four KPIs, two comparison columns, and eight visible table rows.
