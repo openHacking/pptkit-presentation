@@ -28,7 +28,7 @@ Update installed skills with:
 npx skills update
 ```
 
-The installed skill uses `https://openhacking.github.io/pptkit-presentation/` as its default HTTPS review application, so customers do not need to configure a preview URL. For a private deployment, staging environment, or local development, supply a URL for the current task or set `PPTKIT_PREVIEW_URL`; either overrides the official default. In Codex, the skill discovers the in-app Browser controls and `node_repl js`, initializes the `iab` browser, and attempts to open the resolved URL before declaring browser review unavailable. It does not treat an abbreviated initial tool list as evidence that no browser exists. The skill selects the Node fallback only after a real browser setup/navigation failure or when another documented fallback condition applies, and it explains the reason.
+The installed skill uses `https://openhacking.github.io/pptkit-presentation/` as its default HTTPS review application, so customers do not need to configure a preview URL. For a private deployment, staging environment, or local development, supply a URL for the current task or set `PPTKIT_PREVIEW_URL`; either overrides the official default. In Codex, the skill discovers the Browser controls and `node_repl js`, tries the in-app `iab` browser first, and then tries external Chrome through `agent.browsers.get("extension")` when the Chrome skill is available. It reads the selected browser's complete documentation before control and does not treat an abbreviated initial tool list as evidence that no browser exists. Chrome uses the same preview bridge, transfer protocol, local storage, and export flow. Only concrete results from both Codex browser channels permit an automatic browser-unavailable fallback to Node; no runtime-choice question interrupts generation.
 
 ## Ask for a deck
 
@@ -70,7 +70,7 @@ The preview exposes a hidden, read-only `[data-testid="pptkit-preview-bridge"]` 
 
 ## Node fallback
 
-The skill initializes its isolated TypeScript starter when browser review is unavailable, the unified transfer protocol actually fails, unattended local output is required, or the user requests LibreOffice/PowerPoint-oriented rendering. Runtime routing is a guarded decision: the initializer refuses to create a project unless the caller supplies a valid reason, matching browser-check status and step, and concrete evidence.
+The skill initializes its isolated TypeScript starter when both available Codex browser channels are unavailable, the unified transfer protocol actually fails, unattended local output is required, or the user requests LibreOffice/PowerPoint-oriented rendering. Runtime routing is a guarded decision: the initializer refuses to create a project unless the caller supplies a valid reason, matching browser-check status and step, and concrete evidence. For Codex setup, selection, or navigation failures, the existing fallback evidence string contains labeled `iab` and Chrome results. After automatic fallback, the agent explains that the Node workflow is in use and that enabling the in-app Browser next time provides a better PPT review experience; it does not claim it can open Codex settings or trigger a system enablement dialog.
 
 ```bash
 node skills/pptkit-presentation/scripts/init-project.mjs \

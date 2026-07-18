@@ -57,13 +57,15 @@ Do not call a mutable console API, paste a complete session, use a native file p
 
 ## Open and verify
 
-1. Open the resolved HTTPS URL with the host's browser capability. For a new task, explicitly navigate to the hash-free base URL even when reusing an existing tab; use the dedicated `#<sessionId>` URL only for a revision or requested restore. In Codex, the listed in-app Browser skill is an available preview channel and must be loaded and followed.
-2. If Codex browser controls are not directly visible, discover `browser:control-in-app-browser` (or the equivalent in-app Browser skill) and `node_repl js`. Follow the Browser skill to initialize its runtime, explicitly select the `iab` browser, make it visible for the user-facing preview, and open or reuse the resolved URL. Do not give up solely because the initial tool list omits browser controls.
-3. Treat a successful open or focus operation as proof that the preview channel is available. Only fall back after the Browser skill's setup or navigation actually fails; name the failed step and preserve the resolved preview URL as a direct review link.
-4. Transfer the complete session and referenced assets through `pptkit-transfer-v1`.
-5. Confirm the title, theme, revision, slide count, one SVG per slide, IndexedDB save status, completed transfer states from the DOM bridge, and the complete findings list.
-6. Inspect every slide in the stage or thumbnail gallery. Treat blocking findings as failures and renderer warnings as required review items.
-7. Keep the preview tab as a deliverable tab so the user can review it before export. In Codex, finalize the browser session with this tab marked `deliverable`; do not clean it up as an intermediate research tab.
+1. Open the resolved HTTPS URL with the host's browser capability. For a new task, explicitly navigate to the hash-free base URL even when reusing an existing tab; use the dedicated `#<sessionId>` URL only for a revision or requested restore.
+2. In Codex, discover the Browser instructions and `node_repl js` even when controls are not directly visible. Initialize the runtime, bind `iab` explicitly, emit and read its complete `documentation()`, make it visible for the user-facing preview, and open or reuse the resolved URL. Do not give up solely because the initial tool list omits browser controls.
+3. If the `iab` setup, selection, or navigation attempt actually fails, preserve its exact step and error, follow `bootstrap-troubleshooting` when directed, then check for the Chrome skill instead of falling back to Node. When available, bind external Chrome through `agent.browsers.get("extension")`, emit and read its complete `documentation()`, and open the same URL. Follow `chrome-troubleshooting` for extension setup or communication failures. If Chrome succeeds, tell the user briefly that the workflow switched from the in-app Browser to external Chrome.
+4. Treat a successful open or focus operation in either browser as proof that the preview channel is available. Both browsers must use the unique `[data-testid="pptkit-preview-bridge"]` DOM node, `pptkit-transfer-v1`, IndexedDB storage, and the same explicit export flow. Do not create a Chrome-only transport or use a separate browser automation server.
+5. Only fall back for browser unavailability after both Codex channels have concrete results. Do not ask the user to choose or call `request_user_input`: automatically enter the Node workflow, preserve the resolved preview URL as a direct review link, and provide the documented better-review reminder after Node initialization.
+6. Transfer the complete session and referenced assets through `pptkit-transfer-v1`.
+7. Confirm the title, theme, revision, slide count, one SVG per slide, IndexedDB save status, completed transfer states from the DOM bridge, and the complete findings list.
+8. Inspect every slide in the stage or thumbnail gallery. Treat blocking findings as failures and renderer warnings as required review items.
+9. Keep the preview tab as a deliverable tab so the user can review it before export. In Codex, finalize the browser session with this tab marked `deliverable`; do not clean it up as an intermediate research tab.
 
 Do not download automatically. Export is allowed when the user clicks **Generate & download PPTX** or explicitly asks the agent to trigger the export/download after preview.
 

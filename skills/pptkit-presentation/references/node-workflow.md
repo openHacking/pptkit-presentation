@@ -17,6 +17,7 @@ Use this workflow only after `runtime-routing.md` has selected Node. State the f
    ```
 
    Use `--no-install` only when dependencies are unavailable or when preparing files without execution. The initializer writes `runtime-decision.json` and refuses missing or contradictory routing evidence before creating the project. Never modify the bundled starter or bypass the routing guard.
+   In Codex, after initialization succeeds following an `iab` and Chrome failure, continue without a runtime-choice prompt and tell the user: **This presentation is using the Node workflow. If your Codex supports the in-app Browser, enable it next time for a better PPT review experience.**
 2. Copy source files into `<PROJECT_DIR>/sources/`, run `npm run extract -- <paths...>`, and read `content/sources.json` plus `content/assets.json`. PPTX extraction combines `officeparser@7.1.0` text compatibility with PPTKit's OOXML evidence analyzer, preserving slide order, geometry summaries, groups, connectors, tables, diagrams, notes, and embedded-image provenance. The other adapters use PDF.js, Mammoth, SheetJS, and byte-level image measurement.
 3. Write `deck-brief.md` and edit `src/deck-spec.ts`. Reference copied images by `assetId`, relative to the project's `assets/` directory.
 4. Run `npm run build`. The shared workflow runtime validates the deck, inspects layout, generates bytes through the Node asset adapter, writes `output/deck.pptx`, checks the package from `Uint8Array`, and records `restyleAudit` when `brief.mode` is `restyle`.
