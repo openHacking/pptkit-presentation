@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { open, stat } from "node:fs/promises";
+import { open, readFile, stat } from "node:fs/promises";
+import { validateDeckSession } from "./session-contract.mjs";
 
-export const PPTKIT_TRANSFER_PROTOCOL = "pptkit-transfer-v1";
+export const PPTKIT_TRANSFER_PROTOCOL = "pptkit-transfer";
 export const DEFAULT_CHUNK_BYTES = 512 * 1024;
 
 async function fileSha256(file) {
@@ -29,6 +30,14 @@ export async function preparePptkitTransfer({
   if (!Number.isSafeInteger(chunkBytes) || chunkBytes <= 0 || chunkBytes > DEFAULT_CHUNK_BYTES) throw new Error(`chunkBytes must be between 1 and ${DEFAULT_CHUNK_BYTES}.`);
   const info = await stat(file);
   if (!info.isFile() || info.size <= 0) throw new Error(`Transfer payload must be a non-empty file: ${file}`);
+  if (kind === "session") {
+    let session;
+    try { session = JSON.parse(await readFile(file, "utf8")); }
+    catch (error) { throw new Error(`Session file ${file} is not valid UTF-8 JSON: ${error instanceof Error ? error.message : String(error)}`); }
+    try { validateDeckSession(session); }
+    catch (error) { throw new Error(`Session validation failed for ${file}: ${error instanceof Error ? error.message : String(error)}`); }
+    if (session.id !== payloadId) throw new Error(`Session payloadId ${payloadId} does not match session.id ${String(session.id)}.`);
+  }
   const sha256 = await fileSha256(file);
   const chunkCount = Math.ceil(info.size / chunkBytes);
   const transferId = transferIdFor(kind, payloadId, sessionId, sha256);

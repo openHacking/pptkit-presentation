@@ -9,7 +9,7 @@ import {
   NOT_RUN_PACKAGE_CHECK,
   validateDeckSpec,
   type BuildReport,
-  type DeckSessionV2,
+  type DeckSession,
   type StructuralIssue,
 } from "presentation-workflow";
 import { renderPresentationToSvg, type SvgRenderResult } from "@pptkit/svg-renderer";
@@ -27,6 +27,7 @@ import {
   MAX_TRANSFER_CHUNK_BYTES,
   PPTKIT_TRANSFER_PROTOCOL,
   receiveTransferChunk,
+  SessionValidationError,
   TransferReceiveError,
   type TransferProgress,
 } from "./transfer.js";
@@ -68,7 +69,7 @@ const findingsCount = byId<HTMLSpanElement>("findings-count");
 const issuesPanel = byId<HTMLElement>("issues-panel");
 const issuesContainer = byId<HTMLDivElement>("issues");
 
-let session: DeckSessionV2 | undefined;
+let session: DeckSession | undefined;
 let presentation: PresentationDocument | undefined;
 let layoutDecisions: BuildReport["layoutDecisions"] = [];
 let preview: SvgRenderResult | undefined;
@@ -186,7 +187,7 @@ function revokeObjectUrls() {
   objectUrls = [];
 }
 
-async function createAssetResolver(activeSession: DeckSessionV2) {
+async function createAssetResolver(activeSession: DeckSession) {
   const resolved = new Map<string, { source: { type: "url"; value: string }; mimeType: string; dedupeKey: string }>();
   const urls: string[] = [];
   for (const asset of activeSession.assets) {
@@ -199,7 +200,7 @@ async function createAssetResolver(activeSession: DeckSessionV2) {
   return { resolveAsset: (assetId: string) => resolved.get(assetId), urls };
 }
 
-function changedSlides(previous: DeckSessionV2 | undefined, next: DeckSessionV2) {
+function changedSlides(previous: DeckSession | undefined, next: DeckSession) {
   if (!previous || previous.id !== next.id) return [];
   const before = new Map(previous.deck.slides.map((slide) => [slide.id, JSON.stringify(slide)]));
   return next.deck.slides.filter((slide) => before.get(slide.id) !== JSON.stringify(slide)).map((slide) => slide.id);
@@ -365,7 +366,7 @@ async function refreshStoredTransfers() {
   renderTransferProgress();
 }
 
-async function renderSession(nextSession: DeckSessionV2, changed: string[] = []) {
+async function renderSession(nextSession: DeckSession, changed: string[] = []) {
   const generation = ++renderGeneration;
   const selectedSlideId = preview?.slides[currentIndex]?.slideId;
   const { resolveAsset, urls } = await createAssetResolver(nextSession);
@@ -583,6 +584,7 @@ transferButton.addEventListener("click", async () => {
       recordTransfer(error.progress);
     }
     transferError.textContent = message;
+    if (error instanceof SessionValidationError) transfers = transfers.filter((item) => item.status !== "failed");
     setStatus("Couldn’t load the presentation.", "error");
     await refreshStoredTransfers().catch(() => undefined);
     setTransferOpen(true);

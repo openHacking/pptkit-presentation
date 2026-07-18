@@ -4,13 +4,12 @@
 
 ## Deck sessions
 
-`DeckSessionV2` is the portable source of truth for browser review:
+`DeckSession` is the portable source of truth for browser review:
 
 ```ts
-import type { DeckSessionV2 } from "presentation-workflow";
+import type { DeckSession } from "presentation-workflow";
 
-const session: DeckSessionV2 = {
-  schemaVersion: 2,
+const session: DeckSession = {
   id: "quarterly-review",
   revision: 1,
   createdAt: new Date().toISOString(),
@@ -25,7 +24,7 @@ const session: DeckSessionV2 = {
 };
 ```
 
-Images use stable `assetId` values. `authorDeck(deck, resolver)` asks the runtime adapter to resolve each ID into a browser URL or Node path and returns `{ presentation, layoutDecisions }`, so callers author and report one identical planning pass.
+Images use stable `assetId` values. Process slides use structured steps such as `steps: [{ title: "Prepare", detail: "Collect evidence" }, { title: "Review" }]`; string entries are invalid. `authorDeck(deck, resolver)` translates the workflow plan into the `@pptkit/core` `PresentationDocument`, so planning fields such as `steps` never enter PPTKit's canonical presentation IR.
 
 `sourceRefs` are provenance metadata. The authoring runtime merges them into speaker notes and never creates an automatic visible source footer. A visible citation must be authored explicitly as human-readable slide content.
 
@@ -51,7 +50,7 @@ For existing-deck revisions, set `DeckBrief.mode` to `restyle` and use `SourceRe
 - `planDeckLayout` returns explainable layout decisions, while deck validation also reports incompatible intent, repeated compositions, and insufficient long-deck diversity.
 - `inspectStructure` checks resolved slide bounds and risky overlaps.
 - `inspectPptxPackage(bytes)` checks required ZIP/XML parts directly from `Uint8Array` in either runtime.
-- `parseDeckSession` validates schema version, external asset metadata, supported image MIME types, unique asset IDs, and slide asset references. Session assets contain byte length and SHA-256 metadata and never inline data URLs.
+- `parseDeckSession` validates the complete session shape, external asset metadata, supported image MIME types, unique asset IDs, and slide asset references. Session assets contain byte length and SHA-256 metadata and never inline data URLs.
 - `auditRestyleTransformation` reports source-page coverage, text retention, asset provenance problems, oversized crops, and complex source slides that appear to have been replaced by a single slide-shaped image. It warns below 25% per-slide or 50% aggregate informative-token retention and when a source crop covers at least 80% of the original slide. These findings are warnings and are stored in `BuildReport.restyleAudit`.
 
 The package has no filesystem, process, IndexedDB, DOM, UI, or network behavior.

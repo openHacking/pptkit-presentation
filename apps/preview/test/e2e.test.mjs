@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const protocol = "pptkit-transfer-v1";
+const protocol = "pptkit-transfer";
 const chunkBytes = 512 * 1024;
 
 function mimeType(file) {
@@ -45,7 +45,6 @@ function digest(bytes) {
 function fixture(revision = 1, assets = [], imageSlides = []) {
   const now = new Date().toISOString();
   return {
-    schemaVersion: 2,
     id: "browser-review",
     revision,
     createdAt: now,
@@ -55,7 +54,7 @@ function fixture(revision = 1, assets = [], imageSlides = []) {
       brief: { title: "Browser Review", audience: "QA", purpose: "Review before download", language: "en-US", slideCountRange: [3 + imageSlides.length, 3 + imageSlides.length], imagePolicy: "Local", constraints: [] },
       slides: [
         { id: "cover", role: "cover", title: "Browser Review", subtitle: "SVG first" },
-        { id: "process", role: "process", title: revision === 1 ? "Review loop" : "Updated review loop", steps: ["Import", "Preview", "Revise", "Download"] },
+        { id: "process", role: "process", title: revision === 1 ? "Review loop" : "Updated review loop", steps: [{ title: "Import", detail: "Load local evidence" }, { title: "Preview" }, { title: "Revise" }, { title: "Download" }] },
         ...imageSlides.map((asset, index) => ({ id: `image-${index + 1}`, role: "image", title: `Large image ${index + 1}`, image: { assetId: asset.id, alt: asset.name, width: 1200, height: 675 } })),
         { id: "closing", role: "closing", title: "Approved", message: "Download only on request." },
       ],
@@ -133,7 +132,7 @@ function largeSvg(byteLength, label) {
 async function updateStoredTransfer(page, transferId, patch) {
   await page.evaluate(async ({ transferId, patch }) => {
     const database = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("pptkit-presentation-preview-transfer-v2", 2);
+      const request = indexedDB.open("pptkit-presentation-preview", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -156,7 +155,7 @@ async function updateStoredTransfer(page, transferId, patch) {
 async function storageCounts(page) {
   return page.evaluate(async () => {
     const database = await new Promise((resolve, reject) => {
-      const request = indexedDB.open("pptkit-presentation-preview-transfer-v2", 2);
+      const request = indexedDB.open("pptkit-presentation-preview", 1);
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);
     });
@@ -362,6 +361,33 @@ test("keeps failures transient and allows the same transfer to retry", async (t)
   await page.waitForFunction(() => globalThis.__pptkitPreviewState.sessionId === "browser-review");
   const retried = (await domBridge(page)).state.transfers.find((item) => item.transferId === transferId);
   assert.equal(retried.status, "completed");
+});
+
+test("reports invalid session content separately and leaves no transfer data", async (t) => {
+  const { server, url } = await serve();
+  t.after(() => server.close());
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.goto(url);
+
+  const invalid = fixture();
+  invalid.deck.slides[1].steps = ["Import", "Preview"];
+  const bytes = Buffer.from(JSON.stringify(invalid));
+  const sha256 = digest(bytes);
+  const transferId = digest(Buffer.from(["session", invalid.id, "", sha256].join("\0")));
+  const envelope = {
+    protocol, transferId, kind: "session", payloadId: invalid.id, mimeType: "application/json",
+    byteLength: bytes.byteLength, sha256, chunkIndex: 0, chunkCount: 1,
+    chunkByteLength: bytes.byteLength, chunkSha256: sha256, dataBase64: bytes.toString("base64"),
+  };
+  await page.getByTestId("pptkit-transfer-toggle").click();
+  await page.getByTestId("pptkit-transfer-input").fill(JSON.stringify(envelope));
+  await page.getByTestId("pptkit-transfer-submit").click();
+  await page.waitForFunction(() => document.querySelector("#transfer-error")?.textContent?.includes("Session validation failed"));
+  assert.match(await page.locator("#transfer-error").textContent(), /deck\.slides\[1\]\.steps\[0\].*object/);
+  assert.deepEqual(await storageCounts(page), { sessions: 0, assets: 0, transfers: 0, chunks: 0 });
+  assert.equal(await page.locator(`[data-transfer-id="${transferId}"]`).count(), 0);
 });
 
 test("prunes expired sessions, assets, and incomplete transfers", async (t) => {

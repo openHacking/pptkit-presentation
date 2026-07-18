@@ -166,6 +166,11 @@ export interface TablePlan {
   rows: string[][];
 }
 
+export interface ProcessStep {
+  title: string;
+  detail?: string;
+}
+
 export interface SlidePlan {
   id: string;
   role: SlideRole;
@@ -176,7 +181,7 @@ export interface SlidePlan {
   image?: ImagePlan;
   kpis?: KpiPlan[];
   comparison?: ComparisonPlan;
-  steps?: string[];
+  steps?: ProcessStep[];
   table?: TablePlan;
   chart?: ChartPlan;
   notes?: string;
@@ -237,8 +242,7 @@ export interface SourceInput {
   bytes: Uint8Array;
 }
 
-export interface DeckSessionV2 {
-  schemaVersion: 2;
+export interface DeckSession {
   id: string;
   revision: number;
   createdAt: string;

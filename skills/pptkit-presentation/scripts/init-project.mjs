@@ -109,7 +109,6 @@ const spec = readFileSync(specPath, "utf8")
 writeFileSync(specPath, spec);
 
 const runtimeDecision = {
-  schemaVersion: 1,
   selectedRuntime: "node",
   reason: options["fallback-reason"],
   resolvedPreviewUrl: options["preview-url"],

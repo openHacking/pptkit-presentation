@@ -68,7 +68,7 @@ Theme tokens are safety rails, not a page template. Brand adaptation may overrid
 | `image` | Pair evidence or product imagery with a point | `image`, optional `items` |
 | `kpi` | Show 1–4 metrics | `kpis` |
 | `comparison` | Compare two positions | `comparison` |
-| `process` | Explain 2–6 ordered steps | `steps` |
+| `process` | Explain 2–6 ordered steps | `steps: [{ title, detail? }]` |
 | `table` | Present structured data | `table`, optional `chart` |
 | `closing` | Close with action or takeaway | `message`, optional `items` |
 
@@ -79,8 +79,26 @@ Use the exact `SlidePlan` field shapes below. Do not substitute older or display
 - `table`: `{ "headers": ["Column A", "Column B"], "rows": [["A1", "B1"]] }`; use `headers`, never `columns`.
 - `kpis`: `[{ "value": "72%", "label": "Retention", "detail": "Optional detail" }]`.
 - `image`: `{ "assetId": "declared-asset-id", "alt": "Description", "fit": "contain" }`.
+- `steps`: `[{ "title": "Prepare", "detail": "Optional supporting explanation" }, { "title": "Review" }]`; use 2–6 objects and never string entries.
 
-Every `ExtractedSource` uses `id`, `name`, `mimeType`, `type`, and `warnings`; text sources put extracted text in `content`. Fields such as `kind` and `slideCount` are not part of `DeckSessionV2`. Before transfer, parse the completed file with `parseDeckSession()`; a JSON syntax check alone is insufficient.
+Every `ExtractedSource` uses `id`, `name`, `mimeType`, `type`, and `warnings`; text sources put extracted text in `content`. Fields such as `kind` and `slideCount` are not part of `DeckSession`. Before transfer, parse the completed file with `parseDeckSession()`; a JSON syntax check alone is insufficient.
+
+Minimal valid role shapes (all also require `id`, `role`, and `title`):
+
+```json
+[
+  { "id": "cover", "role": "cover", "title": "Title" },
+  { "id": "agenda", "role": "agenda", "title": "Agenda", "items": ["Topic"] },
+  { "id": "section", "role": "section", "title": "Section" },
+  { "id": "statement", "role": "statement", "title": "Point", "message": "The main point" },
+  { "id": "image", "role": "image", "title": "Evidence", "image": { "assetId": "declared-image", "alt": "Evidence" } },
+  { "id": "kpi", "role": "kpi", "title": "Metrics", "kpis": [{ "value": "42%", "label": "Growth" }] },
+  { "id": "comparison", "role": "comparison", "title": "Compare", "comparison": { "left": { "heading": "Before", "items": [] }, "right": { "heading": "After", "items": [] } } },
+  { "id": "process", "role": "process", "title": "Process", "steps": [{ "title": "Prepare" }, { "title": "Review" }] },
+  { "id": "table", "role": "table", "title": "Data", "table": { "headers": ["A"], "rows": [["B"]] } },
+  { "id": "closing", "role": "closing", "title": "Next step" }
+]
+```
 
 ## Density and provenance
 

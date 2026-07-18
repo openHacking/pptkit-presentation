@@ -11,7 +11,7 @@ const issues = [];
 const engineVersion = "0.1.8";
 
 if (workflow.name !== "presentation-workflow") issues.push("workflow package name must be presentation-workflow");
-if (workflow.version !== "0.1.0") issues.push("workflow package version must be 0.1.0 for the initial release");
+if (!/^\d+\.\d+\.\d+$/.test(workflow.version)) issues.push("workflow package version must use x.y.z format");
 if (starter.dependencies?.["presentation-workflow"] !== workflow.version) issues.push("starter workflow version must match the published package");
 if (preview.dependencies?.["presentation-workflow"] !== "workspace:*") issues.push("preview must consume the workspace workflow package");
 

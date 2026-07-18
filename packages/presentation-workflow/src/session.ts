@@ -1,6 +1,4 @@
-import type { DeckSessionV2 } from "./contracts.js";
-
-export const SESSION_SCHEMA_VERSION = 2 as const;
+import type { DeckSession } from "./contracts.js";
 const SUPPORTED_ASSET_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/svg+xml"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMPOSITIONS = new Set(["hero", "split", "ledger", "grid", "divided", "timeline", "image-split", "image-hero"]);
@@ -24,7 +22,7 @@ function requireString(value: unknown, path: string) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${path} requires a non-empty string.`);
 }
 
-function validateSlidePlan(slide: unknown, index: number, assetIds: ReadonlySet<string>) {
+function validateSlidePlan(slide: unknown, index: number, assetIds: ReadonlySet<string>, sourceIds: ReadonlySet<string>) {
   const path = `deck.slides[${index}]`;
   if (!isRecord(slide)) throw new Error(`${path} must be an object.`);
   requireString(slide.id, `${path}.id`);
@@ -32,12 +30,21 @@ function validateSlidePlan(slide: unknown, index: number, assetIds: ReadonlySet<
   if (typeof slide.role !== "string" || !SLIDE_ROLES.has(slide.role)) throw new Error(`${path}.role is unsupported: ${String(slide.role)}.`);
   if (slide.composition !== undefined && (typeof slide.composition !== "string" || !COMPOSITIONS.has(slide.composition))) throw new Error(`${path}.composition is unsupported: ${String(slide.composition)}.`);
   if (slide.density !== undefined && (typeof slide.density !== "string" || !DENSITIES.has(slide.density))) throw new Error(`${path}.density is unsupported: ${String(slide.density)}.`);
-  for (const field of ["items", "steps"] as const) {
-    if (slide[field] !== undefined && !isStringArray(slide[field])) throw new Error(`${path}.${field} must be an array of strings.`);
-  }
+  if (slide.items !== undefined && !isStringArray(slide.items)) throw new Error(`${path}.items must be an array of strings.`);
   if (slide.role === "agenda" && (!isStringArray(slide.items) || slide.items.length === 0)) throw new Error(`${path}.items is required for role agenda.`);
   if (slide.role === "statement" && (typeof slide.message !== "string" || !slide.message.trim())) throw new Error(`${path}.message is required for role statement.`);
-  if (slide.role === "process" && (!isStringArray(slide.steps) || slide.steps.length === 0)) throw new Error(`${path}.steps is required for the process role.`);
+  if (slide.steps !== undefined) {
+    if (slide.role !== "process") throw new Error(`${path}.steps is only supported for the process role.`);
+    if (!Array.isArray(slide.steps)) throw new Error(`${path}.steps must be an array of process step objects.`);
+    if (slide.steps.length < 2 || slide.steps.length > 6) throw new Error(`${path}.steps must contain between 2 and 6 process steps.`);
+    for (let stepIndex = 0; stepIndex < slide.steps.length; stepIndex += 1) {
+      const step = slide.steps[stepIndex];
+      if (!isRecord(step)) throw new Error(`${path}.steps[${stepIndex}] must be a process step object.`);
+      requireString(step.title, `${path}.steps[${stepIndex}].title`);
+      if (step.detail !== undefined && typeof step.detail !== "string") throw new Error(`${path}.steps[${stepIndex}].detail must be a string.`);
+    }
+  }
+  if (slide.role === "process" && !Array.isArray(slide.steps)) throw new Error(`${path}.steps is required for the process role.`);
   if (slide.role === "kpi") {
     if (!Array.isArray(slide.kpis) || slide.kpis.length === 0) throw new Error(`${path}.kpis is required for role kpi.`);
     for (let kpiIndex = 0; kpiIndex < slide.kpis.length; kpiIndex += 1) {
@@ -82,19 +89,28 @@ function validateSlidePlan(slide: unknown, index: number, assetIds: ReadonlySet<
       const reference = slide.sourceRefs[referenceIndex];
       if (!isRecord(reference)) throw new Error(`${path}.sourceRefs[${referenceIndex}] must be an object.`);
       requireString(reference.id, `${path}.sourceRefs[${referenceIndex}].id; use id, not sourceId`);
+      if (!sourceIds.has(reference.id as string)) throw new Error(`${path}.sourceRefs[${referenceIndex}].id references undeclared source ${String(reference.id)}.`);
       if (reference.slideNumbers !== undefined && (!Array.isArray(reference.slideNumbers) || reference.slideNumbers.some((number) => !Number.isSafeInteger(number) || (number as number) <= 0))) throw new Error(`${path}.sourceRefs[${referenceIndex}].slideNumbers must contain positive integers.`);
     }
   }
 }
 
-export function parseDeckSession(value: string | unknown): DeckSessionV2 {
+export function parseDeckSession(value: string | unknown): DeckSession {
   const input: unknown = typeof value === "string" ? JSON.parse(value) : value;
   if (!input || typeof input !== "object") throw new Error("Deck session must be an object.");
-  const candidate = input as Partial<DeckSessionV2>;
-  if (candidate.schemaVersion !== SESSION_SCHEMA_VERSION) throw new Error(`Unsupported deck session schema: ${String(candidate.schemaVersion)}.`);
-  if (!candidate.id || !candidate.deck || !Array.isArray(candidate.sources) || !Array.isArray(candidate.assets)) throw new Error("Deck session is missing required fields.");
+  const candidate = input as Partial<DeckSession>;
+  requireString(candidate.id, "id");
+  if (!Number.isSafeInteger(candidate.revision) || (candidate.revision as number) < 1) throw new Error("revision must be a positive integer.");
+  requireString(candidate.createdAt, "createdAt");
+  requireString(candidate.updatedAt, "updatedAt");
+  if (!Number.isFinite(Date.parse(candidate.createdAt as string))) throw new Error("createdAt must be an ISO-8601 timestamp.");
+  if (!Number.isFinite(Date.parse(candidate.updatedAt as string))) throw new Error("updatedAt must be an ISO-8601 timestamp.");
+  if (!candidate.deck || !Array.isArray(candidate.sources) || !Array.isArray(candidate.assets)) throw new Error("Deck session is missing required fields.");
   if (!candidate.deck.design || !candidate.deck.design.seed?.trim()) throw new Error("Deck session requires a non-empty design seed.");
   if (!candidate.deck.brief || !Array.isArray(candidate.deck.brief.slideCountRange)) throw new Error("Deck session requires a brief with slideCountRange.");
+  for (const field of ["title", "audience", "purpose", "language", "imagePolicy"] as const) requireString(candidate.deck.brief[field], `deck.brief.${field}`);
+  if (candidate.deck.brief.slideCountRange.length !== 2 || candidate.deck.brief.slideCountRange.some((count) => !Number.isSafeInteger(count) || count < 1) || candidate.deck.brief.slideCountRange[0] > candidate.deck.brief.slideCountRange[1]) throw new Error("deck.brief.slideCountRange must contain two ascending positive integers.");
+  if (!isStringArray(candidate.deck.brief.constraints)) throw new Error("deck.brief.constraints must be an array of strings.");
   if (candidate.deck.brief.mode && !DECK_MODES.has(candidate.deck.brief.mode)) throw new Error(`Unsupported deck mode: ${String(candidate.deck.brief.mode)}.`);
   if (!THEMES.has(candidate.deck.design.theme?.id)) throw new Error(`Unsupported theme: ${String(candidate.deck.design.theme?.id)}.`);
   if (!VARIATIONS.has(candidate.deck.design.variation)) throw new Error(`Unsupported design variation: ${String(candidate.deck.design.variation)}.`);
@@ -134,11 +150,17 @@ export function parseDeckSession(value: string | unknown): DeckSessionV2 {
     assetIds.add(asset.id);
   }
   if (!Array.isArray(candidate.deck.slides)) throw new Error("Deck session slides must be an array.");
-  candidate.deck.slides.forEach((slide, index) => validateSlidePlan(slide, index, assetIds));
-  return candidate as DeckSessionV2;
+  const slideIds = new Set<string>();
+  candidate.deck.slides.forEach((slide, index) => {
+    validateSlidePlan(slide, index, assetIds, sourceIds);
+    const slideId = slide.id;
+    if (slideIds.has(slideId)) throw new Error(`Duplicate slide id: ${slideId}.`);
+    slideIds.add(slideId);
+  });
+  return candidate as DeckSession;
 }
 
-export function serializeDeckSession(session: DeckSessionV2) {
+export function serializeDeckSession(session: DeckSession) {
   parseDeckSession(session);
   return JSON.stringify(session, null, 2);
 }

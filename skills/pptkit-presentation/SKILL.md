@@ -17,7 +17,7 @@ Create a structured deck session, preview it in the browser, and generate an edi
 6. After approval, choose the runtime:
    - Read [runtime-routing.md](references/runtime-routing.md) and complete its state machine. Runtime selection is a recorded decision, not an inference from which tools happen to be visible.
    - In Codex, discover the Browser instructions and the `node_repl js` tool even when browser controls are not directly visible. Initialize the Browser runtime, explicitly try the `iab` browser first, and, if that real attempt fails, try external Chrome through `agent.browsers.get("extension")` when the Chrome skill is available. Read each selected browser's complete `documentation()` before controlling it. Do not infer unavailability from the initial tool list or silently choose Node.
-   - Use [browser-workflow.md](references/browser-workflow.md) when either Codex browser can open the official or configured HTTPS preview URL, supports `pptkit-transfer-v1`, and the user did not require unattended local output or Office/LibreOffice rendering. Chrome uses the same DOM bridge, transfer protocol, IndexedDB storage, and export flow as the in-app browser.
+   - Use [browser-workflow.md](references/browser-workflow.md) when either Codex browser can open the official or configured HTTPS preview URL, supports `pptkit-transfer`, and the user did not require unattended local output or Office/LibreOffice rendering. Chrome uses the same DOM bridge, transfer protocol, IndexedDB storage, and export flow as the in-app browser.
    - Use [node-workflow.md](references/node-workflow.md) otherwise. In Codex, browser-unavailable fallback evidence must include separate concrete `iab` and Chrome results through the initializer's `--iab-evidence` and `--chrome-evidence` arguments; a free-form summary or initially hidden control is insufficient. Do not pause for a browser-choice question. State the fallback reason, pass the required routing evidence to the guarded initializer, and, after initialization, mention that enabling the in-app Browser next time provides a better PPT review experience. If the initializer rejects the evidence, stop; do not bypass or modify the guard.
 7. Read [design-system.md](references/design-system.md) before authoring. Use `deck-session.json` as the browser source of truth and stable slide IDs across revisions.
 8. Treat validation errors, missing required assets, out-of-bounds elements, risky overlaps, malformed packages, and unexpected exporter warnings as failures. Read [quality.md](references/quality.md).
@@ -25,7 +25,7 @@ Create a structured deck session, preview it in the browser, and generate an edi
 
 ## Keep these contracts
 
-- Use `DeckSessionV2` with `schemaVersion: 2`. Every `DeckSpec` requires `design.theme`, `design.seed`, and `design.variation`; call `authorDeck()` when authoring outside the preview application.
+- Use `DeckSession`. Every `DeckSpec` requires `design.theme`, `design.seed`, and `design.variation`; call `authorDeck()` when authoring outside the preview application.
 - Use `assetId` references in `ImagePlan`; never leak temporary filesystem paths into the browser-neutral deck spec.
 - Use one of `clean-business`, `swiss-grid`, or `editorial-story` and the ten supported slide roles.
 - Treat the three previews as design languages, not fixed final templates. Use `DeckSpec.design.seed` for reproducible variation and use only `design.theme.overrides` color/font fields when brand adaptation is required.

@@ -15,7 +15,7 @@ function visibleText(slide: SlidePlan): string {
     slide.subtitle,
     slide.message,
     ...(slide.items ?? []),
-    ...(slide.steps ?? []),
+    ...(slide.steps ?? []).flatMap((step) => [step.title, step.detail]),
     ...(slide.kpis ?? []).flatMap((item) => [item.value, item.label, item.detail]),
     slide.comparison?.left.heading,
     ...(slide.comparison?.left.items ?? []),

@@ -1,4 +1,4 @@
-import { parseDeckSession, type DeckSessionV2 } from "presentation-workflow";
+import { parseDeckSession, type DeckSession } from "presentation-workflow";
 
 import {
   completeAssetTransfer,
@@ -10,12 +10,12 @@ import {
   type StoredTransfer,
 } from "./storage.js";
 
-export const PPTKIT_TRANSFER_PROTOCOL = "pptkit-transfer-v1" as const;
+export const PPTKIT_TRANSFER_PROTOCOL = "pptkit-transfer" as const;
 export const MAX_TRANSFER_CHUNK_BYTES = 512 * 1024;
 const STORAGE_RESERVE_BYTES = 32 * 1024 * 1024;
 const SHA256 = /^[a-f0-9]{64}$/i;
 
-export interface PptkitTransferV1 {
+export interface TransferEnvelope {
   protocol: typeof PPTKIT_TRANSFER_PROTOCOL;
   transferId: string;
   kind: "session" | "asset";
@@ -43,7 +43,7 @@ export interface TransferProgress {
 }
 
 export type TransferResult = TransferProgress & {
-  session?: DeckSessionV2;
+  session?: DeckSession;
   completedAssetId?: string;
 };
 
@@ -59,10 +59,10 @@ function integer(value: unknown, name: string, minimum = 0) {
   return Number(value);
 }
 
-function parseEnvelope(value: string): PptkitTransferV1 {
+function parseEnvelope(value: string): TransferEnvelope {
   const input: unknown = JSON.parse(value);
   if (!input || typeof input !== "object") throw new Error("Transfer envelope must be an object.");
-  const candidate = input as Partial<PptkitTransferV1>;
+  const candidate = input as Partial<TransferEnvelope>;
   if (candidate.protocol !== PPTKIT_TRANSFER_PROTOCOL) throw new Error(`Unsupported transfer protocol: ${String(candidate.protocol)}.`);
   if (!candidate.transferId || !candidate.payloadId) throw new Error("Transfer envelope requires transferId and payloadId.");
   if (candidate.kind !== "session" && candidate.kind !== "asset") throw new Error(`Unsupported transfer kind: ${String(candidate.kind)}.`);
@@ -78,7 +78,7 @@ function parseEnvelope(value: string): PptkitTransferV1 {
   if (!SHA256.test(candidate.sha256 ?? "") || !SHA256.test(candidate.chunkSha256 ?? "")) throw new Error("Transfer envelope requires valid SHA-256 digests.");
   if (typeof candidate.dataBase64 !== "string" || candidate.dataBase64.length === 0) throw new Error("Transfer envelope requires Base64 chunk data.");
   if (candidate.kind === "session" && candidate.mimeType !== "application/json") throw new Error("Session transfers require application/json.");
-  return { ...candidate, byteLength, chunkIndex, chunkCount, chunkByteLength } as PptkitTransferV1;
+  return { ...candidate, byteLength, chunkIndex, chunkCount, chunkByteLength } as TransferEnvelope;
 }
 
 function decodeBase64(value: string) {
@@ -93,7 +93,7 @@ async function sha256(bytes: BufferSource) {
   return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-function metadataMatches(stored: StoredTransfer, envelope: PptkitTransferV1) {
+function metadataMatches(stored: StoredTransfer, envelope: TransferEnvelope) {
   return stored.kind === envelope.kind
     && stored.payloadId === envelope.payloadId
     && stored.sessionId === envelope.sessionId
@@ -127,7 +127,7 @@ async function ensureStorageCapacity(byteLength: number) {
   if (estimate.quota - estimate.usage < required) throw new Error(`Insufficient browser storage: ${required} bytes of free quota are required.`);
 }
 
-function createStoredTransfer(envelope: PptkitTransferV1): StoredTransfer {
+function createStoredTransfer(envelope: TransferEnvelope): StoredTransfer {
   return {
     transferId: envelope.transferId,
     kind: envelope.kind,
@@ -143,7 +143,7 @@ function createStoredTransfer(envelope: PptkitTransferV1): StoredTransfer {
   };
 }
 
-export async function receiveTransferChunk(serialized: string, activeSession?: DeckSessionV2): Promise<TransferResult> {
+export async function receiveTransferChunk(serialized: string, activeSession?: DeckSession): Promise<TransferResult> {
   const envelope = parseEnvelope(serialized);
   let transfer = await loadTransfer(envelope.transferId);
   if (transfer?.status === "failed") {
@@ -172,7 +172,9 @@ export async function receiveTransferChunk(serialized: string, activeSession?: D
     if (await sha256(await blob.arrayBuffer()) !== transfer.sha256) throw new Error("Completed transfer failed SHA-256 verification.");
 
     if (transfer.kind === "session") {
-      const nextSession = parseDeckSession(await blob.text());
+      let nextSession: DeckSession;
+      try { nextSession = parseDeckSession(await blob.text()); }
+      catch (error) { throw new SessionValidationError(error instanceof Error ? error.message : String(error)); }
       if (nextSession.id !== transfer.payloadId) throw new Error("Session payload id does not match the transferred session.");
       await completeSessionTransfer(transfer.transferId, nextSession);
       return { ...progress(transfer, "completed"), session: nextSession };
@@ -190,6 +192,14 @@ export async function receiveTransferChunk(serialized: string, activeSession?: D
     const message = error instanceof Error ? error.message : String(error);
     await discardTransfer(transfer.transferId).catch(() => undefined);
     const failed = { ...transfer, received: [], status: "failed" as const, error: message };
+    if (error instanceof SessionValidationError) throw error;
     throw new TransferReceiveError(message, progress(failed, "failed"));
+  }
+}
+
+export class SessionValidationError extends Error {
+  constructor(message: string) {
+    super(`Session validation failed: ${message}`);
+    this.name = "SessionValidationError";
   }
 }

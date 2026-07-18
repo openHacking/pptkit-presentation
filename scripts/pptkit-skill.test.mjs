@@ -79,7 +79,7 @@ test("presentation skill requires progressive native interaction and an approval
   assert.match(browserWorkflow, /Do not download automatically/);
   assert.match(browserWorkflow, /explicitly asks the agent to trigger the export\/download/);
   assert.match(browserWorkflow, /IndexedDB/);
-  assert.match(browserWorkflow, /pptkit-transfer-v1/);
+  assert.match(browserWorkflow, /pptkit-transfer/);
   assert.match(browserWorkflow, /data-testid="pptkit-preview-bridge"/);
   assert.match(browserWorkflow, /data-testid="pptkit-transfer-toggle"/);
   assert.match(browserWorkflow, /aria-expanded/);
@@ -103,8 +103,6 @@ test("presentation skill requires progressive native interaction and an approval
   assert.match(nodeWorkflow, /--chrome-evidence <CHROME_STEP_AND_RESULT>/i);
   assert.match(nodeWorkflow, /enable it next time for a better PPT review experience/i);
   assert.match(designSystem, /sourceRefs.*provenance metadata/is);
-  assert.match(browserWorkflow, /"schemaVersion": 2/);
-  assert.doesNotMatch(browserWorkflow, /"schemaVersion": 1/);
   assert.match(designSystem, /use `id`, never `sourceId`/i);
   assert.match(designSystem, /use `headers`, never `columns`/i);
   assert.match(designSystem, /both sides require `heading` and `items`/i);
@@ -137,18 +135,52 @@ test("transfer helper creates deterministic resumable envelopes without leaking 
   const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-transfer-helper-"));
   const file = path.join(root, "session.json");
   try {
-    writeFileSync(file, JSON.stringify({ schemaVersion: 2, id: "transfer-test" }));
+    const now = "2026-07-18T00:00:00.000Z";
+    writeFileSync(file, JSON.stringify({
+      id: "transfer-test", revision: 1, createdAt: now, updatedAt: now,
+      deck: {
+        brief: { title: "Transfer", audience: "QA", purpose: "Test transfer", language: "en-US", slideCountRange: [1, 1], imagePolicy: "None", constraints: [] },
+        design: { theme: { id: "clean-business" }, seed: "transfer-test", variation: "balanced" },
+        slides: [{ id: "cover", role: "cover", title: "Transfer" }],
+      },
+      sources: [], assets: [],
+    }));
     const { preparePptkitTransfer } = await import(pathToFileURL(path.join(skillRoot, "scripts", "transfer-payload.mjs")).href);
+    await assert.rejects(() => preparePptkitTransfer({ file, kind: "session", payloadId: "wrong-id", mimeType: "application/json", chunkBytes: 8 }), /does not match session\.id/);
     const prepared = await preparePptkitTransfer({ file, kind: "session", payloadId: "transfer-test", mimeType: "application/json", chunkBytes: 8 });
     assert.ok(prepared.chunkCount > 1);
     const envelope = JSON.parse(await prepared.envelope(0));
-    assert.equal(envelope.protocol, "pptkit-transfer-v1");
+    assert.equal(envelope.protocol, "pptkit-transfer");
     assert.equal(envelope.chunkByteLength, 8);
     assert.equal(envelope.dataBase64.length > 0, true);
     assert.doesNotMatch(JSON.stringify(envelope), new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("transfer helper rejects invalid sessions before creating envelopes", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-transfer-invalid-"));
+  const file = path.join(root, "session.json");
+  try {
+    writeFileSync(file, JSON.stringify({ id: "invalid", deck: { slides: [{ role: "process", steps: ["Old shape"] }] } }));
+    const { preparePptkitTransfer } = await import(pathToFileURL(path.join(skillRoot, "scripts", "transfer-payload.mjs")).href);
+    await assert.rejects(() => preparePptkitTransfer({ file, kind: "session", payloadId: "invalid", mimeType: "application/json" }), /Session validation failed/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("skill and workflow session validators agree on structured process steps", async () => {
+  const { validateDeckSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "session-contract.mjs")).href);
+  const { parseDeckSession } = await import(pathToFileURL(path.join(repoRoot, "packages", "presentation-workflow", "dist", "index.js")).href);
+  const valid = JSON.parse(readFileSync(path.join(repoRoot, "apps", "preview", "test", "fixtures", "manual-deck-session.json"), "utf8"));
+  assert.equal(validateDeckSession(valid).id, valid.id);
+  assert.equal(parseDeckSession(valid).id, valid.id);
+  const invalid = structuredClone(valid);
+  invalid.deck.slides[1].steps = ["Old string shape", "Still invalid"];
+  assert.throws(() => validateDeckSession(invalid), /deck\.slides\[1\]\.steps\[0\].*object/);
+  assert.throws(() => parseDeckSession(invalid), /deck\.slides\[1\]\.steps\[0\].*object/);
 });
 
 function linkDirectory(target, link) {
@@ -195,7 +227,7 @@ export const deckSpec: DeckSpec = {
     { id: "image", role: "image", title: "Visual evidence", message: "Images fill controlled slots instead of determining the page structure.", items: ["Preserve aspect ratio", "Choose contain or cover", "Provide alt text"], image: { assetId: "fixture.svg", alt: "Theme fixture", width: 1200, height: 675, fit: "cover" } },
     { id: "kpi", role: "kpi", title: "Key metrics", kpis: [{ value: "+18%", label: "Activation", detail: "Quarter over quarter" }, { value: "72%", label: "Retention" }, { value: "3.4×", label: "Velocity" }] },
     { id: "comparison", role: "comparison", title: "Two paths", comparison: { left: { heading: "Before", items: ["Repeated coordinates", "Implicit defaults", "Hard to inspect"] }, right: { heading: "After", items: ["Semantic plan", "Theme tokens", "Automated report"] } } },
-    { id: "process", role: "process", title: "The workflow", steps: ["Intake", "Outline", "Author", "Validate", "Export"] },
+    { id: "process", role: "process", title: "The workflow", steps: [{ title: "Intake" }, { title: "Outline" }, { title: "Author" }, { title: "Validate" }, { title: "Export" }] },
     { id: "table", role: "table", title: "Delivery matrix", table: { headers: ["Artifact", "Owner", "Status"], rows: [["Brief", "Agent", "Ready"], ["PPTX", "PPTKit", "Ready"], ["Review", "User", "Open"]] } },
     { id: "bar", role: "table", title: "Quarterly adoption", chart: { type: "bar", categories: ["Q1", "Q2", "Q3", "Q4"], series: [{ name: "Team A", values: [22, 35, 48, 70] }, { name: "Team B", values: [18, 30, 44, 58] }] } },
     { id: "line", role: "table", title: "Delivery speed", chart: { type: "line", categories: ["Jan", "Feb", "Mar", "Apr", "May"], series: [{ name: "Cycle time", values: [8, 7, 5, 4, 3] }] } },
@@ -215,7 +247,6 @@ test("initializer creates an isolated starter and applies theme", () => {
     assert.match(readFileSync(path.join(project, "src", "deck-spec.ts"), "utf8"), /theme: \{ id: "editorial-story" \}/);
     assert.ok(existsSync(path.join(project, "deck-brief.md")));
     assert.deepEqual(JSON.parse(readFileSync(path.join(project, "runtime-decision.json"), "utf8")), {
-      schemaVersion: 1,
       selectedRuntime: "node",
       reason: "unattended-local-output",
       resolvedPreviewUrl: "https://openhacking.github.io/pptkit-presentation/",

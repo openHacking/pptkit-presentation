@@ -427,8 +427,11 @@ function renderProcess(slide: PresentationSlide, tokens: ThemeTokens, plan: Slid
         size: 16, color: tokens.accent, bold: true, lineSpacing: 1, name: "Process sequence",
       });
       addRule(slide, { x, y: 210 }, { x: x + width, y: 210 }, tokens.text, 0.75, 0.16);
-      addText(slide, tokens, step, { x, y: 236, width, height: 144 }, {
-        size: 19, font: tokens.headingFont, lineSpacing: 1.1, verticalAlign: "middle", name: "Process step",
+      addText(slide, tokens, step.title, { x, y: 232, width, height: step.detail ? 54 : 144 }, {
+        size: 19, font: tokens.headingFont, bold: true, lineSpacing: 1.1, verticalAlign: step.detail ? "top" : "middle", name: "Process step title",
+      });
+      if (step.detail) addText(slide, tokens, step.detail, { x, y: 294, width, height: 88 }, {
+        size: 15, color: tokens.muted, lineSpacing: 1.1, verticalAlign: "top", name: "Process step detail",
       });
     } else {
       addText(slide, tokens, String(stepIndex + 1).padStart(2, "0"), { x, y: 166, width, height: 36 }, {
@@ -440,8 +443,11 @@ function renderProcess(slide: PresentationSlide, tokens: ThemeTokens, plan: Slid
         strokeOpacity: tokens.id === "swiss-grid" ? 0.3 : 0.1,
         radius: tokens.id !== "swiss-grid",
       });
-      addText(slide, tokens, step, { x: x + 12, y: 240, width: width - 24, height: 132 }, {
-        size: 17, bold: true, lineSpacing: 1.08, verticalAlign: "middle", name: "Process step",
+      addText(slide, tokens, step.title, { x: x + 12, y: 240, width: width - 24, height: step.detail ? 54 : 132 }, {
+        size: 17, bold: true, lineSpacing: 1.08, verticalAlign: step.detail ? "top" : "middle", name: "Process step title",
+      });
+      if (step.detail) addText(slide, tokens, step.detail, { x: x + 12, y: 300, width: width - 24, height: 68 }, {
+        size: 13, color: tokens.muted, lineSpacing: 1.08, verticalAlign: "top", name: "Process step detail",
       });
       if (stepIndex < steps.length - 1) addRule(slide, { x: x + width, y: 309 }, { x: x + width + tokens.gap, y: 309 }, tokens.accent, 1.5);
     }
@@ -456,9 +462,12 @@ function renderProcessLedger(slide: PresentationSlide, tokens: ThemeTokens, plan
     addText(slide, tokens, String(index + 1).padStart(2, "0"), { x: tokens.margin, y: y + 6, width: 70, height: rowHeight - 12 }, {
       size: 18, color: tokens.accent, bold: true, lineSpacing: 1, verticalAlign: "middle", name: "Process sequence",
     });
-    addText(slide, tokens, step, { x: tokens.margin + 92, y: y + 6, width: 720, height: rowHeight - 12 }, {
-      size: 19, font: tokens.id === "editorial-story" ? tokens.headingFont : tokens.bodyFont,
-      lineSpacing: 1.08, verticalAlign: "middle", name: "Process step",
+    addText(slide, tokens, step.title, { x: tokens.margin + 92, y: y + 6, width: step.detail ? 280 : 720, height: rowHeight - 12 }, {
+      size: 19, bold: true, font: tokens.id === "editorial-story" ? tokens.headingFont : tokens.bodyFont,
+      lineSpacing: 1.08, verticalAlign: "middle", name: "Process step title",
+    });
+    if (step.detail) addText(slide, tokens, step.detail, { x: tokens.margin + 390, y: y + 6, width: 422, height: rowHeight - 12 }, {
+      size: 15, color: tokens.muted, lineSpacing: 1.08, verticalAlign: "middle", name: "Process step detail",
     });
     addRule(slide, { x: tokens.margin + 92, y: y + rowHeight }, { x: 906, y: y + rowHeight }, tokens.text, 0.75, 0.14);
   });
@@ -476,8 +485,11 @@ function renderProcessDivided(slide: PresentationSlide, tokens: ThemeTokens, pla
       addText(slide, tokens, String(index + 1).padStart(2, "0"), { x, y, width: 52, height: 28 }, {
         size: 16, color: tokens.accent, bold: true, lineSpacing: 1, name: "Process sequence",
       });
-      addText(slide, tokens, step, { x: x + 64, y: y - 2, width: 300, height: 58 }, {
-        size: 18, lineSpacing: 1.08, verticalAlign: "middle", name: "Process step",
+      addText(slide, tokens, step.title, { x: x + 64, y: y - 2, width: 300, height: step.detail ? 28 : 58 }, {
+        size: 18, bold: true, lineSpacing: 1.08, verticalAlign: step.detail ? "top" : "middle", name: "Process step title",
+      });
+      if (step.detail) addText(slide, tokens, step.detail, { x: x + 64, y: y + 28, width: 300, height: 36 }, {
+        size: 13, color: tokens.muted, lineSpacing: 1.05, verticalAlign: "top", name: "Process step detail",
       });
     });
   });

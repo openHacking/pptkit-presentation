@@ -1,7 +1,7 @@
-import type { DeckSessionV2 } from "presentation-workflow";
+import type { DeckSession } from "presentation-workflow";
 
-const DATABASE = "pptkit-presentation-preview-transfer-v2";
-const VERSION = 2;
+const DATABASE = "pptkit-presentation-preview";
+const VERSION = 1;
 const SESSIONS = "sessions";
 const ASSETS = "assets";
 const TRANSFERS = "transfers";
@@ -78,7 +78,7 @@ function requestValue<T>(request: IDBRequest<T>, message: string) {
   });
 }
 
-export async function saveSession(session: DeckSessionV2) {
+export async function saveSession(session: DeckSession) {
   const database = await openDatabase();
   const transaction = database.transaction(SESSIONS, "readwrite");
   transaction.objectStore(SESSIONS).put(session);
@@ -89,13 +89,13 @@ export async function saveSession(session: DeckSessionV2) {
 export async function loadSession(id: string) {
   const database = await openDatabase();
   const transaction = database.transaction(SESSIONS, "readonly");
-  const result = await requestValue(transaction.objectStore(SESSIONS).get(id), "Session could not be loaded.") as DeckSessionV2 | undefined;
+  const result = await requestValue(transaction.objectStore(SESSIONS).get(id), "Session could not be loaded.") as DeckSession | undefined;
   await complete(transaction);
   database.close();
   return result;
 }
 
-export async function loadAssetBlob(sessionId: string, asset: DeckSessionV2["assets"][number]) {
+export async function loadAssetBlob(sessionId: string, asset: DeckSession["assets"][number]) {
   const database = await openDatabase();
   const transaction = database.transaction(ASSETS, "readonly");
   const result = await requestValue(transaction.objectStore(ASSETS).get(`${sessionId}:${asset.id}`), "Asset could not be loaded.") as StoredAsset | undefined;
@@ -160,7 +160,7 @@ async function deleteTransferIn(transaction: IDBTransaction, transferId: string)
   for (const key of keys) chunks.delete(key);
 }
 
-export async function completeSessionTransfer(transferId: string, session: DeckSessionV2) {
+export async function completeSessionTransfer(transferId: string, session: DeckSession) {
   const database = await openDatabase();
   const transaction = database.transaction([SESSIONS, ASSETS, TRANSFERS, CHUNKS], "readwrite");
   transaction.objectStore(SESSIONS).put(session);
@@ -237,7 +237,7 @@ export async function pruneExpiredStorage(now = Date.now()) {
   const transferRequest = transfersStore.getAll();
   const chunkRequest = chunksStore.getAll();
   const [sessions, assets, transfers, chunks] = await Promise.all([
-    requestValue(sessionRequest, "Sessions could not be listed.") as Promise<DeckSessionV2[]>,
+    requestValue(sessionRequest, "Sessions could not be listed.") as Promise<DeckSession[]>,
     requestValue(assetRequest, "Assets could not be listed.") as Promise<StoredAsset[]>,
     requestValue(transferRequest, "Transfers could not be listed.") as Promise<StoredTransfer[]>,
     requestValue(chunkRequest, "Chunks could not be listed.") as Promise<StoredChunk[]>,

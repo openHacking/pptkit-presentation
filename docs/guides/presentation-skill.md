@@ -46,7 +46,7 @@ The generated deck keeps source IDs and filenames out of visible slide copy. `so
 
 After approval, browser mode creates `deck-brief.md`, `deck-session.json`, and `content/sources.json`.
 
-The agent transfers `DeckSessionV2` JSON bytes and every referenced asset through the same resumable `pptkit-transfer-v1` protocol. The page renders one standalone SVG per slide, shows blocking issues and warnings, stores the session and assets in IndexedDB, and keeps the review tab open. It does not upload deck data and does not generate PPTX bytes during preview.
+The agent transfers `DeckSession` JSON bytes and every referenced asset through the same resumable `pptkit-transfer` protocol. The page renders one standalone SVG per slide, shows blocking issues and warnings, stores the session and assets in IndexedDB, and keeps the review tab open. It does not upload deck data and does not generate PPTX bytes during preview.
 
 Each newly approved task receives a unique session ID. The hash-free preview URL always opens a clean workspace; a `#<sessionId>` URL restores only that task. Revisions within the same task retain the ID, while a new conversation never inherits the previous task's preview, assets, or transfer errors.
 

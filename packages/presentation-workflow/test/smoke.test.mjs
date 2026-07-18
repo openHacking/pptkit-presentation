@@ -34,7 +34,7 @@ function deck(themeId = "clean-business") {
     },
     slides: [
       { id: "cover", role: "cover", title: "Browser-first decks", subtitle: "Preview before download" },
-      { id: "process", role: "process", title: "Review loop", steps: ["Import", "Preview", "Revise", "Download"] },
+      { id: "process", role: "process", title: "Review loop", steps: [{ title: "Import", detail: "Load local evidence" }, { title: "Preview" }, { title: "Revise" }, { title: "Download" }] },
       { id: "closing", role: "closing", title: "Ready", message: "Generate only when approved." },
     ],
   };
@@ -60,7 +60,7 @@ function allRolesDeck(themeId = "clean-business") {
       { id: "image", role: "image", title: "Evidence belongs in the layout", message: "Images support the argument.", items: ["Preserve aspect ratio", "Use a stable slot"] },
       { id: "kpi", role: "kpi", title: "Signals that matter", kpis: [{ value: "+18%", label: "Activation", detail: "Quarter over quarter" }, { value: "72%", label: "Retention" }, { value: "3.4×", label: "Velocity" }] },
       { id: "comparison", role: "comparison", title: "Two approaches", comparison: { left: { heading: "Before", items: ["Repeated cards", "Weak hierarchy"] }, right: { heading: "After", items: ["Theme-specific structure", "Readable scale"] } } },
-      { id: "process", role: "process", title: "A deliberate workflow", steps: ["Frame", "Outline", "Compose", "Review"] },
+      { id: "process", role: "process", title: "A deliberate workflow", steps: [{ title: "Frame" }, { title: "Outline" }, { title: "Compose" }, { title: "Review" }] },
       { id: "table", role: "table", title: "Delivery ledger", table: { headers: ["Artifact", "Role"], rows: [["Brief", "Locks the purpose"], ["Outline", "Locks the argument"], ["Preview", "Reveals layout issues"]] } },
       { id: "closing", role: "closing", title: "Make the next decision obvious.", message: "Review the evidence, then act." },
     ],
@@ -169,6 +169,22 @@ test("authors every role without structural failures across every theme", () => 
     const presentation = presentationOf(spec);
     assert.deepEqual(inspectStructure(presentation), []);
     assert.equal(presentation.slides.length, 10);
+  }
+});
+
+test("renders structured process titles and details across every process recipe", () => {
+  for (const theme of ["clean-business", "swiss-grid", "editorial-story"]) {
+    for (const composition of ["timeline", "ledger", "divided"]) {
+      const spec = deck(theme);
+      spec.slides[1].composition = composition;
+      const normalized = normalizePresentation(presentationOf(spec));
+      const text = normalized.slides[1].elements
+        .filter((element) => element.type === "text")
+        .map((element) => element.plainText)
+        .join("\n");
+      assert.match(text, /Import/);
+      assert.match(text, /Load local evidence/);
+    }
   }
 });
 
@@ -413,9 +429,13 @@ test("measures browser-neutral PNG, GIF, and SVG bytes", () => {
 
 test("validates session schema and external asset metadata", () => {
   const now = new Date().toISOString();
-  const session = { schemaVersion: 2, id: "session-1", revision: 1, createdAt: now, updatedAt: now, deck: deck(), sources: [], assets: [] };
+  const session = { id: "session-1", revision: 1, createdAt: now, updatedAt: now, deck: deck(), sources: [], assets: [] };
   assert.equal(parseDeckSession(session).id, "session-1");
-  assert.throws(() => parseDeckSession({ ...session, schemaVersion: 1 }), /Unsupported/);
+  const process = session.deck.slides[1];
+  assert.throws(() => parseDeckSession({ ...session, deck: { ...session.deck, slides: [session.deck.slides[0], { ...process, steps: ["Import", "Preview"] }, session.deck.slides[2]] } }), /deck\.slides\[1\]\.steps\[0\].*object/);
+  assert.throws(() => parseDeckSession({ ...session, deck: { ...session.deck, slides: [session.deck.slides[0], { ...process, steps: [{ title: "Only" }] }, session.deck.slides[2]] } }), /between 2 and 6/);
+  assert.throws(() => parseDeckSession({ ...session, deck: { ...session.deck, slides: [session.deck.slides[0], { ...process, steps: [{ title: "" }, { title: "Next" }] }, session.deck.slides[2]] } }), /steps\[0\]\.title/);
+  assert.throws(() => parseDeckSession({ ...session, deck: { ...session.deck, slides: [session.deck.slides[0], { ...process, steps: [{ title: "First", detail: 1 }, { title: "Next" }] }, session.deck.slides[2]] } }), /steps\[0\]\.detail/);
   assert.throws(() => parseDeckSession({ ...session, assets: [{ id: "asset", name: "asset.png", mimeType: "image/png", dataUrl: "data:image/png;base64,AA==" }] }), /must not contain inline dataUrl/);
   assert.throws(() => parseDeckSession({ ...session, assets: [{ id: "asset", name: "asset.mp4", mimeType: "video/mp4", byteLength: 1, sha256: "a".repeat(64) }] }), /Unsupported session asset MIME type/);
   assert.throws(() => parseDeckSession({ ...session, assets: [{ id: "asset", name: "asset.png", mimeType: "image/png", byteLength: 0, sha256: "a".repeat(64) }] }), /positive byteLength/);

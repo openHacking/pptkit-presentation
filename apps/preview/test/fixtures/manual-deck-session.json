@@ -1,5 +1,4 @@
 {
-  "schemaVersion": 2,
   "id": "manual-toolbar-review",
   "revision": 1,
   "createdAt": "2026-07-17T00:00:00.000Z",
@@ -31,10 +30,10 @@
         "role": "process",
         "title": "What to verify",
         "steps": [
-          "Saved status stays concise",
-          "Transfer dot is centered",
-          "Findings uses one SVG icon",
-          "Export remains available"
+          { "title": "Saved status", "detail": "Keep it concise" },
+          { "title": "Transfer dot", "detail": "Keep it centered" },
+          { "title": "Findings", "detail": "Use one SVG icon" },
+          { "title": "Export", "detail": "Remain available" }
         ]
       },
       {

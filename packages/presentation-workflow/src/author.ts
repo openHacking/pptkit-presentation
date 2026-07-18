@@ -17,7 +17,7 @@ function visibleStrings(plan: SlidePlan): string[] {
     plan.subtitle,
     plan.message,
     ...(plan.items ?? []),
-    ...(plan.steps ?? []),
+    ...(plan.steps ?? []).flatMap((step) => [step.title, step.detail]),
     ...(plan.kpis ?? []).flatMap((kpi) => [kpi.value, kpi.label, kpi.detail]),
     plan.comparison?.left.heading,
     ...(plan.comparison?.left.items ?? []),
@@ -70,7 +70,7 @@ function addDensityIssues(plan: SlidePlan, issues: StructuralIssue[]) {
       slideId: plan.id,
     });
   }
-  const denseItem = [...(plan.items ?? []), ...(plan.steps ?? [])].find((item) => weightedLength(item) > 120);
+  const denseItem = [...(plan.items ?? []), ...(plan.steps ?? []).flatMap((step) => [step.title, step.detail].filter((value): value is string => Boolean(value)))].find((item) => weightedLength(item) > 120);
   if (denseItem) {
     issues.push({
       severity: "warning",

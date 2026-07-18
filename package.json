@@ -12,7 +12,7 @@
     "build": "pnpm -r build",
     "typecheck": "tsc -b --pretty false",
     "lint": "node scripts/check-boundaries.mjs && node scripts/check-versions.mjs && node scripts/check-docs.mjs",
-    "test": "pnpm --filter presentation-workflow test && pnpm test:preview && pnpm test:skill",
+    "test": "pnpm --filter presentation-workflow test && pnpm test:preview && pnpm test:skill && node --test scripts/release.test.mjs",
     "test:preview": "pnpm --filter presentation-preview test",
     "test:skill": "node --test scripts/pptkit-skill.test.mjs",
     "pack:check": "npm pack --dry-run --json ./packages/presentation-workflow --cache .npm-cache",

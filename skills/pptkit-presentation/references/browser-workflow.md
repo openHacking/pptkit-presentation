@@ -8,9 +8,9 @@ Use this workflow only after the confirmation gate.
   1. A URL explicitly supplied by the user or host for the current task.
   2. `PPTKIT_PREVIEW_URL`, when available.
   3. The official PPTKit preview application at `https://openhacking.github.io/pptkit-presentation/`.
-- Require the resolved application to support `DeckSessionV2` with `schemaVersion: 2`. Never invent another deployment URL.
+- Require the resolved application to support `DeckSession`. Never invent another deployment URL.
 - Require modern browser support for `fetch`, `Blob`, `URL`, typed arrays, `structuredClone`, Web Crypto, storage estimation, and IndexedDB.
-- Require the read-only `[data-testid="pptkit-preview-bridge"]` DOM bridge to report `pptkit-transfer-v1`. Its JSON is authored by the preview page in the page's native context and includes `protocol`, `maxChunkBytes`, required `apis`, and resumable transfer `state`. Do not infer page API availability from globals visible to the Browser tool's isolated read-only evaluation sandbox. Fall back only when the resolved URL is unreachable or incompatible, the DOM bridge reports IndexedDB or another required API unavailable, a real chunk transfer fails, or strict Office/LibreOffice rendering is required. File size alone is never a fallback reason.
+- Require the read-only `[data-testid="pptkit-preview-bridge"]` DOM bridge to report `pptkit-transfer`. Its JSON is authored by the preview page in the page's native context and includes `protocol`, `maxChunkBytes`, required `apis`, and resumable transfer `state`. Do not infer page API availability from globals visible to the Browser tool's isolated read-only evaluation sandbox. Fall back only when the resolved URL is unreachable or incompatible, the DOM bridge reports IndexedDB or another required API unavailable, a real chunk transfer fails, or strict Office/LibreOffice rendering is required. File size alone is never a fallback reason.
 
 ## Create the session
 
@@ -27,12 +27,29 @@ Use this top-level shape:
 
 ```json
 {
-  "schemaVersion": 2,
   "id": "stable-deck-slug",
   "revision": 1,
-  "createdAt": "ISO-8601",
-  "updatedAt": "ISO-8601",
-  "deck": { "brief": {}, "slides": [] },
+  "createdAt": "2026-07-18T00:00:00.000Z",
+  "updatedAt": "2026-07-18T00:00:00.000Z",
+  "deck": {
+    "brief": {
+      "title": "Example deck",
+      "audience": "Decision makers",
+      "purpose": "Explain the recommendation",
+      "language": "en-US",
+      "slideCountRange": [2, 2],
+      "imagePolicy": "Local assets only",
+      "constraints": []
+    },
+    "design": { "theme": { "id": "clean-business" }, "seed": "example-deck", "variation": "balanced" },
+    "slides": [
+      { "id": "cover", "role": "cover", "title": "Example deck" },
+      { "id": "process", "role": "process", "title": "How it works", "steps": [
+        { "title": "Prepare", "detail": "Collect the local evidence" },
+        { "title": "Review", "detail": "Inspect the browser preview" }
+      ] }
+    ]
+  },
   "sources": [],
   "assets": []
 }
@@ -60,9 +77,9 @@ Do not call a mutable console API, paste a complete session, use a native file p
 1. Open the resolved HTTPS URL with the host's browser capability. For a new task, explicitly navigate to the hash-free base URL even when reusing an existing tab; use the dedicated `#<sessionId>` URL only for a revision or requested restore.
 2. In Codex, discover the Browser instructions and `node_repl js` even when controls are not directly visible. Initialize the runtime, bind `iab` explicitly, emit and read its complete `documentation()`, make it visible for the user-facing preview, and open or reuse the resolved URL. Do not give up solely because the initial tool list omits browser controls.
 3. If the `iab` setup, selection, or navigation attempt actually fails, preserve its exact step and error, follow `bootstrap-troubleshooting` when directed, then check for the Chrome skill instead of falling back to Node. When available, bind external Chrome through `agent.browsers.get("extension")`, emit and read its complete `documentation()`, and open the same URL. Follow `chrome-troubleshooting` for extension setup or communication failures. If Chrome succeeds, tell the user briefly that the workflow switched from the in-app Browser to external Chrome.
-4. Treat a successful open or focus operation in either browser as proof that the preview channel is available. Both browsers must use the unique `[data-testid="pptkit-preview-bridge"]` DOM node, `pptkit-transfer-v1`, IndexedDB storage, and the same explicit export flow. Do not create a Chrome-only transport or use a separate browser automation server.
+4. Treat a successful open or focus operation in either browser as proof that the preview channel is available. Both browsers must use the unique `[data-testid="pptkit-preview-bridge"]` DOM node, `pptkit-transfer`, IndexedDB storage, and the same explicit export flow. Do not create a Chrome-only transport or use a separate browser automation server.
 5. Only fall back for browser unavailability after both Codex channels have concrete results. Do not ask the user to choose or call `request_user_input`: automatically enter the Node workflow, preserve the resolved preview URL as a direct review link, and provide the documented better-review reminder after Node initialization.
-6. Transfer the complete session and referenced assets through `pptkit-transfer-v1`.
+6. Transfer the complete session and referenced assets through `pptkit-transfer`.
 7. Confirm the title, theme, revision, slide count, one SVG per slide, IndexedDB save status, completed transfer states from the DOM bridge, and the complete findings list.
 8. Inspect every slide in the stage or thumbnail gallery. Treat blocking findings as failures and renderer warnings as required review items.
 9. Keep the preview tab as a deliverable tab so the user can review it before export. In Codex, finalize the browser session with this tab marked `deliverable`; do not clean it up as an intermediate research tab.
