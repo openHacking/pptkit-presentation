@@ -6,7 +6,7 @@ Derive everything possible from the user's prompt and files first. Ask only for 
 
 1. **Purpose:** audience, delivery setting, desired outcome, and language.
 2. **Design:** preferred theme, brand constraints, format, and non-negotiable content.
-3. **Scope and material:** duration/page range, authoritative sources, image policy, confidentiality, and citations.
+3. **Scope and material:** duration/page range, authoritative sources, image policy, visual intensity, confidentiality, and citations.
 
 Treat every supplied source consistently. Extract available text and structured data, then inspect tables, charts, diagrams, flow direction, grouping, hierarchy, and other information architecture when present. Do not assume that text extraction alone captures the source: a DOCX, PDF, PPTX, spreadsheet, or image may all contain essential visual structure. Normalize the resulting evidence into `sources` before outlining.
 
@@ -45,12 +45,15 @@ After the outline is ready, show a short decision summary that remains visible:
 
 - working title and expected slide count
 - selected theme and image strategy
+- visual thesis, primary medium, and planned visual-anchor slides
 - material constraints or known gaps
 - outline overview
 
 Put the full per-slide plan (role, title, message, visual, and source IDs) after the summary. Use an expandable detail section when the host provides one, but do not rely on it for the confirmation control. Then request exactly one outcome through the host's native control, or the numbered fallback:
 
-For each slide, record and persist `composition` (`hero`, `split`, `ledger`, `grid`, `divided`, `timeline`, `image-split`, or `image-hero`) and `density` (`airy`, `balanced`, or `dense`) on `SlidePlan`. Choose an explicit composition when the argument requires it; otherwise omit it and let the deterministic deck planner select from role/content/theme/adjacent rhythm using `DeckSpec.design.seed`. Revise the outline when several adjacent slides repeat the same composition or when dense copy would require text below the theme floor.
+For each slide, record and persist `composition` (`hero`, `split`, `ledger`, `grid`, `divided`, `timeline`, `image-split`, `image-hero`, `image-background`, or `color-field`), `density` (`airy`, `balanced`, or `dense`), and any explicit `visualIntent` (`content-led`, `image-led`, `color-led`, `data-led`, or `type-led`) on `SlidePlan`. Choose an explicit composition or visual intent when the argument requires it; otherwise omit it and let the deterministic deck planner select from role/content/theme/adjacent rhythm using `DeckSpec.design.seed`. Revise the outline when several adjacent slides repeat the same composition, four content-led pages create a flat visual run, or dense copy would require text below the theme floor.
+
+For decks of eight or more slides, identify at least two content-appropriate visual anchors in the outline unless the user explicitly requests uniform restraint. An anchor may be image-led, color-led, type-led, or data-led. Never add an irrelevant image merely to satisfy the count.
 
 1. **Approve and generate** — create the deck session and continue to preview.
 2. **Change the plan** — ask again only for the affected decision, refresh the outline, and present confirmation again.
@@ -71,7 +74,7 @@ project/
 
 The browser source of truth is `deck-session.json`; extracted content is evidence, not slide copy. The Node fallback retains its isolated TypeScript project shape from `node-workflow.md`.
 
-The brief should also state one visual thesis, subject-specific motifs that may be used, and generic defaults to avoid. Keep those judgments in `deck-brief.md`; do not add them as runtime fields or visible slide copy.
+The brief should also state one visual thesis, the primary visual medium, planned visual-anchor slides, subject-specific motifs that may be used, and generic defaults to avoid. Keep deck-level judgments in `deck-brief.md`; persist only per-slide `visualIntent` in the runtime spec and never expose these labels as visible slide copy.
 
 ## Iteration
 

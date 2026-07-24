@@ -21,6 +21,10 @@ function overlapArea(a: NormalizedElement["box"], b: NormalizedElement["box"]) {
   return width * height;
 }
 
+function permitsIntentionalOverlap(a: NormalizedElement, b: NormalizedElement) {
+  return (a.type === "image" && a.name === "Background image") || (b.type === "image" && b.name === "Background image");
+}
+
 export function inspectStructure(input: PresentationDocument | NormalizedPresentation): StructuralIssue[] {
   const document = "irVersion" in input ? input : normalizePresentation(input);
   const issues: StructuralIssue[] = [];
@@ -40,6 +44,7 @@ export function inspectStructure(input: PresentationDocument | NormalizedPresent
       for (let right = left + 1; right < visible.length; right += 1) {
         const a = visible[left]!;
         const b = visible[right]!;
+        if (permitsIntentionalOverlap(a, b)) continue;
         const overlap = overlapArea(a.box, b.box);
         const smaller = Math.min(a.box.width * a.box.height, b.box.width * b.box.height);
         if (smaller > 0 && overlap / smaller > 0.35) {

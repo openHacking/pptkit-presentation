@@ -52,10 +52,24 @@ The ten public roles remain semantic. Composition is an optional public intent a
 - `divided`: two positions separated by a meaningful rule or field change.
 - `timeline`: ordered process where sequence matters.
 - `image-split` / `image-hero`: imagery as evidence, not decoration.
+- `image-background`: full-bleed imagery with a deliberate high-contrast text field.
+- `color-field`: a large tonal field that creates hierarchy or a narrative transition.
 
 Do not use numbering unless order, navigation, or comparison needs it. Do not place every idea in a card. Do not repeat the same main composition on three consecutive slides.
 
 Theme tokens are safety rails, not a page template. Brand adaptation may override the six theme colors and heading/body fonts, but must preserve contrast and the typography floors. Never expose arbitrary coordinates, margins, radii, or per-element sizes through the deck spec.
+
+## Visual direction
+
+Use `visualIntent` to name the first visual focus of a slide:
+
+- `content-led`: structured copy and relationships are primary.
+- `image-led`: imagery occupies meaningful visual area and carries evidence, object identity, scene, or emotion.
+- `color-led`: a large color field establishes hierarchy, contrast, or transition.
+- `data-led`: a chart, table, KPI, or quantitative comparison dominates.
+- `type-led`: one statement or title carries the slide at presentation scale.
+
+For decks of eight or more slides, plan at least two content-appropriate visual anchors unless the user explicitly requests a uniformly restrained sequence. Do not use four consecutive low-intensity content-led slides without an intentional transition.
 
 ## Ten roles
 
@@ -79,6 +93,7 @@ Use the exact `SlidePlan` field shapes below. Do not substitute older or display
 - `table`: `{ "headers": ["Column A", "Column B"], "rows": [["A1", "B1"]] }`; use `headers`, never `columns`.
 - `kpis`: `[{ "value": "72%", "label": "Retention", "detail": "Optional detail" }]`.
 - `image`: `{ "assetId": "declared-asset-id", "alt": "Description", "fit": "contain" }`.
+- `visualIntent`: one of `content-led`, `image-led`, `color-led`, `data-led`, or `type-led`.
 - `steps`: `[{ "title": "Prepare", "detail": "Optional supporting explanation" }, { "title": "Review" }]`; use 2–6 objects and never string entries.
 
 Every `ExtractedSource` uses `id`, `name`, `mimeType`, `type`, and `warnings`; text sources put extracted text in `content`. Fields such as `kind` and `slideCount` are not part of `DeckSession`. Before transfer, parse the completed file with `parseDeckSession()`; a JSON syntax check alone is insufficient.
@@ -113,6 +128,7 @@ Minimal valid role shapes (all also require `id`, `role`, and `title`):
 - Reference PNG, JPEG, GIF, or SVG images by stable `assetId`. Browser sessions resolve transferred IndexedDB `blob:` assets; Node fallback projects copy files into `assets/`.
 - Provide width and height from `content/sources.json` so `contain` and `cover` are deterministic.
 - Use `cover` for photographic crops and `contain` for screenshots, diagrams, and UI evidence.
+- Images may appear on cover, section, statement, image, KPI, and closing slides. Use `image-background` only for assets whose important subject survives a 16:9 cover crop.
 - Preserve genuine UI screenshots, scans, and user-supplied evidence images when redrawing would change their meaning. A rendered source slide is not a screenshot asset: in restyle work, extract and reconstruct its text and information structure instead.
 - If a complex source diagram needs raster fallback, crop only the diagram region and pair it with native explanatory copy. Record the crop provenance; using 80% or more of the source slide triggers an oversized-crop warning.
 - Align image slots to the composition grid. Repeated images in one group must share height, crop behavior, and visual weight.

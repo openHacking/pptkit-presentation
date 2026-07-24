@@ -9,6 +9,7 @@ import {
   authorDeck,
   analyzePptxEvidence,
   auditRestyleTransformation,
+  auditVisualRhythm,
   extractPptxEmbeddedAssets,
   extractSource,
   inspectPptxPackage,
@@ -160,6 +161,13 @@ test("rejects incompatible compositions and unsafe theme overrides", () => {
   );
   assert.ok(issues.some((issue) => issue.code === "theme-contrast"));
   assert.ok(issues.some((issue) => issue.code === "invalid-theme-font"));
+
+  const missingImage = allRolesDeck();
+  const imageSlide = missingImage.slides.find((slide) => slide.role === "image");
+  imageSlide.image = undefined;
+  imageSlide.visualIntent = "image-led";
+  assert.ok(validateDeckSpec(missingImage).some((issue) => issue.code === "incompatible-composition" && issue.slideId === imageSlide.id));
+  assert.throws(() => authorDeck(missingImage), /No layout recipe supports image slide image with visual intent image-led/);
 });
 
 test("authors every role without structural failures across every theme", () => {
@@ -197,7 +205,7 @@ test("authors every registered recipe without geometry errors across themes", ()
       slide.composition = recipe.composition;
       slide.density = "balanced";
       if (recipe.id === "image-hero") slide.items = undefined;
-      if (recipe.role === "image") slide.image = { assetId: "fixture", alt: "Fixture", width: 1200, height: 675 };
+      if (recipe.role === "image" || recipe.id.includes("image-")) slide.image = { assetId: "fixture", alt: "Fixture", width: 1200, height: 675 };
       if (recipe.id === "table-split-chart") {
         slide.table = undefined;
         slide.chart = { type: "bar", categories: ["A", "B", "C"], series: [{ name: "Value", values: [1, 2, 3] }] };
@@ -212,6 +220,66 @@ test("authors every registered recipe without geometry errors across themes", ()
       assert.deepEqual(inspectStructure(presentation).filter((issue) => issue.severity === "error"), [], `${theme}/${recipe.id}`);
     }
   }
+});
+
+test("honors explicit visual intent and audits visual rhythm", () => {
+  const spec = allRolesDeck("clean-business");
+  spec.design = { ...spec.design, variation: "expressive" };
+  spec.slides[0].image = { assetId: "fixture", alt: "Product scene", width: 1200, height: 675 };
+  spec.slides[0].composition = "image-background";
+  spec.slides[0].visualIntent = "image-led";
+  spec.slides[4].image = { assetId: "fixture-2", alt: "Product evidence", width: 1200, height: 675 };
+  spec.slides[4].composition = "image-background";
+  spec.slides[4].visualIntent = "image-led";
+  const authored = authorDeck(spec, () => ({
+    source: { type: "url", value: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1200' height='675'/%3E" },
+    mimeType: "image/svg+xml",
+  }));
+  const decisions = authored.layoutDecisions;
+  assert.equal(decisions[0].recipeId, "cover-image-background");
+  assert.equal(decisions[0].visualIntent, "image-led");
+  const audit = auditVisualRhythm(spec, authored.presentation, decisions);
+  assert.ok(audit.visualAnchorSlideIds.includes("cover"));
+  assert.ok(audit.slideAudits.find((slide) => slide.slideId === "cover").imageCoverage >= 0.9);
+  assert.equal(audit.issues.some((issue) => issue.code === "weak-image-led-slide"), false);
+});
+
+test("keeps color-field text readable with light accent overrides", () => {
+  const source = deck("clean-business");
+  source.design = {
+    ...source.design,
+    theme: { ...source.design.theme, overrides: { colors: { accent: "FFFF00" } } },
+  };
+  source.slides = [{
+    ...source.slides[0],
+    composition: "color-field",
+    visualIntent: "color-led",
+  }];
+  source.brief = { ...source.brief, slideCountRange: [1, 1] };
+  const normalized = normalizePresentation(presentationOf(source));
+  const title = normalized.slides[0].elements.find((element) => element.type === "text" && element.name === "Cover title");
+  assert.equal(title.content[0].runs[0].style.color, "000000");
+});
+
+test("reports weak imagery and long flat content runs", () => {
+  const spec = {
+    ...allRolesDeck("clean-business"),
+    design: { theme: { id: "clean-business" }, seed: "flat-run", variation: "expressive" },
+    brief: { ...allRolesDeck().brief, slideCountRange: [8, 8] },
+    slides: Array.from({ length: 8 }, (_, index) => ({
+      id: `agenda-${index}`,
+      role: "agenda",
+      title: `Topic ${index + 1}`,
+      items: ["One", "Two"],
+      visualIntent: "content-led",
+      composition: "ledger",
+    })),
+  };
+  const authored = authorDeck(spec);
+  const audit = auditVisualRhythm(spec, authored.presentation, authored.layoutDecisions);
+  assert.ok(audit.maximumQuietRun >= 4);
+  assert.ok(audit.issues.some((issue) => issue.code === "flat-visual-run"));
+  assert.ok(audit.issues.some((issue) => issue.code === "low-visual-anchor-count"));
 });
 
 test("renders the closing title exactly once across every theme", () => {

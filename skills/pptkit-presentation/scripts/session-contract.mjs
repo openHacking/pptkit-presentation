@@ -3,8 +3,9 @@ const VARIATIONS = new Set(["restrained", "balanced", "expressive"]);
 const ROLES = new Set(["cover", "agenda", "section", "statement", "image", "kpi", "comparison", "process", "table", "closing"]);
 const SOURCE_TYPES = new Set(["text", "document", "table", "image"]);
 const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/svg+xml"]);
-const COMPOSITIONS = new Set(["hero", "split", "ledger", "grid", "divided", "timeline", "image-split", "image-hero"]);
+const COMPOSITIONS = new Set(["hero", "split", "ledger", "grid", "divided", "timeline", "image-split", "image-hero", "image-background", "color-field"]);
 const DENSITIES = new Set(["airy", "balanced", "dense"]);
+const VISUAL_INTENTS = new Set(["content-led", "image-led", "color-led", "data-led", "type-led"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 
 const record = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -21,6 +22,7 @@ function validateSlide(slide, index, sourceIds, assetIds) {
   if (!ROLES.has(slide.role)) throw new Error(`${path}.role is unsupported: ${String(slide.role)}.`);
   if (slide.composition !== undefined && !COMPOSITIONS.has(slide.composition)) throw new Error(`${path}.composition is unsupported: ${String(slide.composition)}.`);
   if (slide.density !== undefined && !DENSITIES.has(slide.density)) throw new Error(`${path}.density is unsupported: ${String(slide.density)}.`);
+  if (slide.visualIntent !== undefined && !VISUAL_INTENTS.has(slide.visualIntent)) throw new Error(`${path}.visualIntent is unsupported: ${String(slide.visualIntent)}.`);
   if (slide.items !== undefined && !strings(slide.items)) throw new Error(`${path}.items must be an array of strings.`);
   if (slide.steps !== undefined) {
     if (slide.role !== "process") throw new Error(`${path}.steps is only supported for the process role.`);

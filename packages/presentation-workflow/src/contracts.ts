@@ -8,10 +8,14 @@ export type CompositionIntent =
   | "divided"
   | "timeline"
   | "image-split"
-  | "image-hero";
+  | "image-hero"
+  | "image-background"
+  | "color-field";
 
 export type SlideDensity = "airy" | "balanced" | "dense";
 export type DesignVariation = "restrained" | "balanced" | "expressive";
+export type VisualIntent = "content-led" | "image-led" | "color-led" | "data-led" | "type-led";
+export type VisualWeight = "quiet" | "standard" | "peak";
 
 export interface ThemeOverrides {
   colors?: Partial<{
@@ -188,6 +192,7 @@ export interface SlidePlan {
   sourceRefs?: SourceRef[];
   composition?: CompositionIntent;
   density?: SlideDensity;
+  visualIntent?: VisualIntent;
 }
 
 export interface DeckSpec {
@@ -200,8 +205,27 @@ export interface LayoutDecision {
   slideId: string;
   composition: CompositionIntent;
   density: SlideDensity;
+  visualIntent: VisualIntent;
+  visualWeight: VisualWeight;
   recipeId: string;
   reason: string;
+}
+
+export interface VisualSlideAudit {
+  slideId: string;
+  visualIntent: VisualIntent;
+  visualWeight: VisualWeight;
+  imageCoverage: number;
+  colorFieldCoverage: number;
+  isVisualAnchor: boolean;
+}
+
+export interface VisualAudit {
+  status: "checked";
+  slideAudits: VisualSlideAudit[];
+  visualAnchorSlideIds: string[];
+  maximumQuietRun: number;
+  issues: StructuralIssue[];
 }
 
 export interface SessionAsset {
@@ -274,6 +298,7 @@ export interface BuildReport {
   exportWarnings: Array<{ code: string; message: string; slideId?: string; assetId?: string }>;
   structuralIssues: StructuralIssue[];
   layoutDecisions: LayoutDecision[];
+  visualAudit: VisualAudit;
   packageChecks: PackageCheck;
   previewStatus: "not-run" | "rendered" | "rendered-with-warnings" | "failed";
   exportStatus: "not-run" | "generated" | "generated-with-warnings" | "failed";

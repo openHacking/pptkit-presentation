@@ -109,6 +109,11 @@ test("presentation skill requires progressive native interaction and an approval
   assert.match(designSystem, /parseDeckSession\(\)/);
   assert.match(designSystem, /46–60 pt/);
   assert.match(designSystem, /hero.*split.*ledger.*timeline/is);
+  assert.match(skill, /visualIntent/);
+  assert.match(workflow, /visual anchor/i);
+  assert.match(designSystem, /image-led.*color-led.*data-led.*type-led/is);
+  assert.match(quality, /visualAudit/);
+  assert.match(quality, /flat-visual-run/);
   assert.match(quality, /visible internal source IDs/i);
   assert.match(guide, /customers do not need to configure a preview URL/i);
   assert.match(guide, /does not treat an abbreviated initial tool list as evidence that no browser exists/i);
@@ -175,12 +180,22 @@ test("skill and workflow session validators agree on structured process steps", 
   const { validateDeckSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "session-contract.mjs")).href);
   const { parseDeckSession } = await import(pathToFileURL(path.join(repoRoot, "packages", "presentation-workflow", "dist", "index.js")).href);
   const valid = JSON.parse(readFileSync(path.join(repoRoot, "apps", "preview", "test", "fixtures", "manual-deck-session.json"), "utf8"));
+  valid.deck.slides[0].visualIntent = "image-led";
+  valid.deck.slides[0].composition = "image-background";
   assert.equal(validateDeckSession(valid).id, valid.id);
   assert.equal(parseDeckSession(valid).id, valid.id);
   const invalid = structuredClone(valid);
   invalid.deck.slides[1].steps = ["Old string shape", "Still invalid"];
   assert.throws(() => validateDeckSession(invalid), /deck\.slides\[1\]\.steps\[0\].*object/);
   assert.throws(() => parseDeckSession(invalid), /deck\.slides\[1\]\.steps\[0\].*object/);
+  const invalidVisualIntent = structuredClone(valid);
+  invalidVisualIntent.deck.slides[0].visualIntent = "decorative";
+  assert.throws(() => validateDeckSession(invalidVisualIntent), /visualIntent is unsupported: decorative/);
+  assert.throws(() => parseDeckSession(invalidVisualIntent), /visualIntent is unsupported: decorative/);
+  const invalidComposition = structuredClone(valid);
+  invalidComposition.deck.slides[0].composition = "poster";
+  assert.throws(() => validateDeckSession(invalidComposition), /composition is unsupported: poster/);
+  assert.throws(() => parseDeckSession(invalidComposition), /composition is unsupported: poster/);
 });
 
 function linkDirectory(target, link) {
