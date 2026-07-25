@@ -83,6 +83,7 @@ let objectUrls: string[] = [];
 let persisted = true;
 let transfers: TransferProgress[] = [];
 let missingAssetCount = 0;
+let lastTransferError: string | undefined;
 let routeGeneration = 0;
 let renderGeneration = 0;
 
@@ -150,6 +151,7 @@ function bridgeState() {
     state: {
       sessionId: session?.id,
       transfers: transfers.map((item) => ({ ...item, received: [...item.received], missing: [...item.missing] })),
+      ...(lastTransferError ? { lastError: lastTransferError } : {}),
     },
   };
 }
@@ -447,6 +449,7 @@ function resetPreviewState(message = "Ready") {
   currentExportStatus = "not-run";
   transfers = [];
   missingAssetCount = 0;
+  lastTransferError = undefined;
   transferInput.value = "";
   transferError.textContent = "";
   deckTitle.textContent = "PPTKit Preview";
@@ -568,6 +571,8 @@ transferButton.addEventListener("click", async () => {
   transferPanel.setAttribute("aria-busy", "true");
   setStatus("Processing transfer…", "busy");
   try {
+    lastTransferError = undefined;
+    renderBridgeState();
     const result = await receiveTransferChunk(transferInput.value, session);
     if (result.kind === "session") {
       if (session && session.id !== result.payloadId) resetPreviewState("Receiving a new presentation…");
@@ -586,6 +591,7 @@ transferButton.addEventListener("click", async () => {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    lastTransferError = message;
     if (error instanceof TransferReceiveError) {
       if (error.progress.kind === "session") replaceRouteSessionId(error.progress.payloadId);
       recordTransfer(error.progress);

@@ -336,6 +336,30 @@ test("reports weak imagery and long flat content runs", () => {
   assert.ok(audit.issues.some((issue) => issue.code === "low-visual-anchor-count"));
 });
 
+test("requires two visual anchors for every deck with at least eight slides", () => {
+  const spec = {
+    ...allRolesDeck(),
+    design: { theme: { id: "clean-business" }, seed: "anchor-threshold", variation: "balanced" },
+    brief: { ...allRolesDeck().brief, slideCountRange: [8, 8] },
+    slides: Array.from({ length: 8 }, (_, index) => ({
+      id: `content-${index}`,
+      role: "agenda",
+      title: `Topic ${index + 1}`,
+      items: ["One", "Two"],
+      visualIntent: "content-led",
+      composition: "ledger",
+    })),
+  };
+  for (const variation of ["restrained", "balanced", "expressive"]) {
+    spec.design = { ...spec.design, variation };
+    const authored = authorDeck(spec);
+    const audit = auditVisualRhythm(spec, normalizePresentation(authored.presentation), authored.layoutDecisions);
+    const issue = audit.issues.find((candidate) => candidate.code === "low-visual-anchor-count");
+    assert.ok(issue);
+    assert.match(issue.message, /plan at least 2 content-appropriate anchors/);
+  }
+});
+
 test("renders the closing title exactly once across every theme", () => {
   for (const theme of ["clean-business", "swiss-grid", "editorial-story"]) {
     const spec = deck(theme);

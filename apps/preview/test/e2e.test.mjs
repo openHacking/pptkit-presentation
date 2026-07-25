@@ -209,6 +209,9 @@ test("imports, persists, revises, previews, and exports through the chunk protoc
   assert.equal(compatibility.protocol, protocol);
   assert.equal(compatibility.maxChunkBytes, chunkBytes);
   assert.deepEqual(Object.values(compatibility.apis), Object.values(compatibility.apis).map(() => true));
+  assert.equal(await page.locator("[data-testid=pptkit-preview-bridge]").count(), 1);
+  assert.equal(await page.locator("[data-testid=pptkit-preview-bridge]").getAttribute("hidden"), null);
+  assert.equal(await page.locator("[data-testid=pptkit-preview-bridge]").evaluate((node) => getComputedStyle(node).clipPath), "inset(50%)");
 
   await sendSession(page, fixture());
   await page.waitForFunction(() => document.querySelectorAll("#thumbnails button").length === 3);
@@ -354,6 +357,7 @@ test("keeps failures transient and allows the same transfer to retry", async (t)
   await page.getByTestId("pptkit-transfer-input").fill(JSON.stringify(envelope));
   await page.getByTestId("pptkit-transfer-submit").click();
   await page.waitForFunction((id) => globalThis.__pptkitPreviewBridge.getState().transfers.some((item) => item.transferId === id && item.status === "failed"), transferId);
+  assert.match((await domBridge(page)).state.lastError, /failed SHA-256 verification/);
   assert.equal((await storageCounts(page)).transfers, 0);
   assert.equal((await storageCounts(page)).chunks, 0);
 

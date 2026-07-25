@@ -108,14 +108,12 @@ export function auditVisualRhythm(
   }
 
   const visualAnchorSlideIds = slideAudits.filter((slide) => slide.isVisualAnchor).map((slide) => slide.slideId);
-  const expectedAnchors = spec.slides.length >= 8
-    ? spec.design.variation === "expressive" ? Math.max(2, Math.floor(spec.slides.length / 5)) : 1
-    : 0;
+  const expectedAnchors = spec.slides.length >= 8 ? 2 : 0;
   if (visualAnchorSlideIds.length < expectedAnchors) {
     issues.push({
       severity: "warning",
       code: "low-visual-anchor-count",
-      message: `This ${spec.slides.length}-slide deck has ${visualAnchorSlideIds.length} strong visual anchor${visualAnchorSlideIds.length === 1 ? "" : "s"}; plan at least ${expectedAnchors} content-appropriate anchor${expectedAnchors === 1 ? "" : "s"}.`,
+      message: `This ${spec.slides.length}-slide deck has ${visualAnchorSlideIds.length} strong visual anchor${visualAnchorSlideIds.length === 1 ? "" : "s"}; plan at least ${expectedAnchors} content-appropriate anchors.`,
     });
   }
 

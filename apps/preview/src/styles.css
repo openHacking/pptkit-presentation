@@ -14,6 +14,18 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+.preview-bridge {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 html, body, #app { width: 100%; height: 100%; height: 100dvh; overflow: hidden; }
 body { margin: 0; min-width: 320px; background: #f4f6f9; }
 button, textarea, input { font: inherit; }
