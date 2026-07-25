@@ -1,4 +1,5 @@
 import type { DeckSession } from "./contracts.js";
+import { planDeckLayout } from "./authoring/planner.js";
 const SUPPORTED_ASSET_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/svg+xml"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMPOSITIONS = new Set(["hero", "split", "ledger", "grid", "divided", "timeline", "image-split", "image-hero", "image-background", "color-field"]);
@@ -159,6 +160,7 @@ export function parseDeckSession(value: string | unknown): DeckSession {
     if (slideIds.has(slideId)) throw new Error(`Duplicate slide id: ${slideId}.`);
     slideIds.add(slideId);
   });
+  planDeckLayout(candidate.deck);
   return candidate as DeckSession;
 }
 

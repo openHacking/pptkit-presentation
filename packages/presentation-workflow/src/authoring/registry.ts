@@ -58,6 +58,7 @@ export const RECIPE_REGISTRY: readonly RecipeDefinition[] = [
   recipe("comparison", "comparison-divided", "divided", (plan) => Boolean(plan.comparison)),
   recipe("comparison", "comparison-split", "split", (plan) => Boolean(plan.comparison)),
   recipe("process", "process-timeline", "timeline", (plan) => Boolean(plan.steps?.length)),
+  recipe("process", "process-grid", "grid", (plan) => Boolean(plan.steps?.length)),
   recipe("process", "process-ledger", "ledger", (plan) => Boolean(plan.steps?.length)),
   recipe("process", "process-divided", "divided", (plan) => (plan.steps?.length ?? 0) >= 2),
   recipe("table", "table-ledger", "ledger", (plan) => Boolean(plan.table && plan.table.headers.length === 2), ALL_DENSITIES, "data-led"),

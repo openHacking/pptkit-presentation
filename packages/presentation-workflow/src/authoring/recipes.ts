@@ -601,6 +601,41 @@ function renderProcess(slide: PresentationSlide, tokens: ThemeTokens, plan: Slid
   });
 }
 
+function renderProcessGrid(slide: PresentationSlide, tokens: ThemeTokens, plan: SlidePlan) {
+  const steps = (plan.steps ?? []).slice(0, 6);
+  const columns = steps.length <= 4 ? 2 : 3;
+  const rows = Math.ceil(steps.length / columns);
+  const gap = tokens.gap;
+  const width = (SLIDE.width - tokens.margin * 2 - gap * (columns - 1)) / columns;
+  const height = (286 - gap * (rows - 1)) / rows;
+
+  steps.forEach((step, index) => {
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    const x = tokens.margin + column * (width + gap);
+    const y = 156 + row * (height + gap);
+    const fill = tokens.id === "swiss-grid" ? tokens.background : tokens.surface;
+    const stroke = tokens.id === "swiss-grid" ? tokens.muted : tokens.text;
+
+    addRect(slide, tokens, { x, y, width, height }, {
+      fill,
+      stroke,
+      strokeOpacity: tokens.id === "swiss-grid" ? 0.3 : 0.1,
+      radius: tokens.id !== "swiss-grid",
+      name: "Process grid item",
+    });
+    addText(slide, tokens, String(index + 1).padStart(2, "0"), { x: x + 14, y: y + 14, width: 42, height: 26 }, {
+      size: 16, color: tokens.accent, bold: true, lineSpacing: 1, name: "Process sequence",
+    });
+    addText(slide, tokens, step.title, { x: x + 14, y: y + 52, width: width - 28, height: step.detail ? 42 : height - 66 }, {
+      size: 18, bold: true, lineSpacing: 1.06, verticalAlign: step.detail ? "top" : "middle", name: "Process step title",
+    });
+    if (step.detail) addText(slide, tokens, step.detail, { x: x + 14, y: y + 100, width: width - 28, height: Math.max(36, height - 116) }, {
+      size: 15, color: tokens.muted, lineSpacing: 1.08, verticalAlign: "top", name: "Process step detail",
+    });
+  });
+}
+
 function renderProcessLedger(slide: PresentationSlide, tokens: ThemeTokens, plan: SlidePlan) {
   const steps = (plan.steps ?? []).slice(0, 6);
   const rowHeight = 286 / Math.max(1, steps.length);
@@ -852,7 +887,8 @@ export function renderSlide(
   }
   else if (plan.role === "comparison") decision.recipeId === "comparison-split" ? renderComparisonSplit(slide, tokens, plan) : renderComparison(slide, tokens, plan);
   else if (plan.role === "process") {
-    if (decision.recipeId === "process-ledger") renderProcessLedger(slide, tokens, plan);
+    if (decision.recipeId === "process-grid") renderProcessGrid(slide, tokens, plan);
+    else if (decision.recipeId === "process-ledger") renderProcessLedger(slide, tokens, plan);
     else if (decision.recipeId === "process-divided") renderProcessDivided(slide, tokens, plan);
     else renderProcess(slide, tokens, plan);
   } else if (plan.role === "table") renderTable(slide, tokens, plan, decision.recipeId);

@@ -180,8 +180,8 @@ test("skill and workflow session validators agree on structured process steps", 
   const { validateDeckSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "session-contract.mjs")).href);
   const { parseDeckSession } = await import(pathToFileURL(path.join(repoRoot, "packages", "presentation-workflow", "dist", "index.js")).href);
   const valid = JSON.parse(readFileSync(path.join(repoRoot, "apps", "preview", "test", "fixtures", "manual-deck-session.json"), "utf8"));
-  valid.deck.slides[0].visualIntent = "image-led";
-  valid.deck.slides[0].composition = "image-background";
+  valid.deck.slides[0].visualIntent = "type-led";
+  valid.deck.slides[0].composition = "hero";
   assert.equal(validateDeckSession(valid).id, valid.id);
   assert.equal(parseDeckSession(valid).id, valid.id);
   const invalid = structuredClone(valid);
@@ -196,6 +196,66 @@ test("skill and workflow session validators agree on structured process steps", 
   invalidComposition.deck.slides[0].composition = "poster";
   assert.throws(() => validateDeckSession(invalidComposition), /composition is unsupported: poster/);
   assert.throws(() => parseDeckSession(invalidComposition), /composition is unsupported: poster/);
+  const incompatibleTableIntent = structuredClone(valid);
+  incompatibleTableIntent.deck.slides[2] = {
+    id: "table",
+    role: "table",
+    title: "Feature matrix",
+    table: { headers: ["Feature", "Value"], rows: [["Preview", "Local"]] },
+    visualIntent: "content-led",
+  };
+  assert.throws(() => validateDeckSession(incompatibleTableIntent), /No layout recipe supports table slide .* visual intent content-led/);
+  assert.throws(() => parseDeckSession(incompatibleTableIntent), /No layout recipe supports table slide .* visual intent content-led/);
+});
+
+test("the self-contained skill validator accepts every registered workflow recipe", async () => {
+  const { validateDeckSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "session-contract.mjs")).href);
+  const { parseDeckSession } = await import(pathToFileURL(path.join(repoRoot, "packages", "presentation-workflow", "dist", "index.js")).href);
+  const { RECIPE_REGISTRY } = await import(pathToFileURL(path.join(repoRoot, "packages", "presentation-workflow", "dist", "authoring", "registry.js")).href);
+  const baseSlides = {
+    cover: { id: "cover", role: "cover", title: "Cover" },
+    agenda: { id: "agenda", role: "agenda", title: "Agenda", items: ["Frame", "Review"] },
+    section: { id: "section", role: "section", title: "Section" },
+    statement: { id: "statement", role: "statement", title: "Statement", message: "One argument.", items: ["Evidence"] },
+    image: { id: "image", role: "image", title: "Image", image: { assetId: "fixture", alt: "Fixture" }, items: ["Evidence"] },
+    kpi: { id: "kpi", role: "kpi", title: "KPI", kpis: [{ value: "42%", label: "Adoption" }] },
+    comparison: { id: "comparison", role: "comparison", title: "Comparison", comparison: { left: { heading: "Before", items: ["Old"] }, right: { heading: "After", items: ["New"] } } },
+    process: { id: "process", role: "process", title: "Process", steps: [{ title: "Prepare" }, { title: "Review" }] },
+    table: {
+      id: "table",
+      role: "table",
+      title: "Table",
+      table: { headers: ["Item", "Value"], rows: [["Preview", "Local"]] },
+      chart: { type: "bar", categories: ["A", "B"], series: [{ name: "Value", values: [1, 2] }] },
+    },
+    closing: { id: "closing", role: "closing", title: "Closing", message: "Next step." },
+  };
+  const imageRoles = new Set(["cover", "section", "statement", "image", "kpi", "closing"]);
+  const now = "2026-07-25T00:00:00.000Z";
+
+  for (const registered of RECIPE_REGISTRY) {
+    const slide = structuredClone(baseSlides[registered.role]);
+    slide.composition = registered.composition;
+    slide.visualIntent = registered.visualIntent;
+    slide.density = "balanced";
+    if (imageRoles.has(registered.role) && registered.id.includes("image")) slide.image = { assetId: "fixture", alt: "Fixture" };
+    if (registered.id === "image-hero") slide.items = undefined;
+    const session = {
+      id: `recipe-${registered.id}`,
+      revision: 1,
+      createdAt: now,
+      updatedAt: now,
+      deck: {
+        brief: { title: registered.id, audience: "QA", purpose: "Validate recipe parity", language: "en-US", slideCountRange: [1, 1], imagePolicy: "Fixture", constraints: [] },
+        design: { theme: { id: "clean-business" }, seed: registered.id, variation: "balanced" },
+        slides: [slide],
+      },
+      sources: [],
+      assets: [{ id: "fixture", name: "fixture.png", mimeType: "image/png", byteLength: 1, sha256: "a".repeat(64) }],
+    };
+    assert.equal(validateDeckSession(session).id, session.id, `skill validator rejected ${registered.id}`);
+    assert.equal(parseDeckSession(session).id, session.id, `workflow parser rejected ${registered.id}`);
+  }
 });
 
 function linkDirectory(target, link) {

@@ -40,7 +40,7 @@ Use PPTKit to turn this quarterly report into an editable 10-slide presentation 
 
 The skill inspects available material, asks only for missing decisions one at a time, shows a theme preview, and proposes a slide-by-slide outline with a composition intent and density check for every page. Those values are persisted in `deck-session.json`; if composition is omitted, the seeded planner makes and reports a deterministic choice. It does not create artifacts until the user selects **Approve and generate**. **Change the plan** returns to the affected decision, while **Cancel** stops without artifacts.
 
-The generated deck keeps source IDs and filenames out of visible slide copy. `sourceRefs` remain available as provenance and are written to speaker notes; visible citations are included only when the user requests a human-readable citation treatment.
+The generated deck keeps source IDs and filenames out of visible slide copy. `sourceRefs` remain available as provenance and are written to speaker notes; visible citations are included only when the user requests a human-readable citation treatment. Composition intents are role-specific: agents should use the compatibility map in the skill's design-system reference and omit optional composition or visual-intent fields when no deliberate compatible treatment is needed.
 
 ## Browser-first review
 

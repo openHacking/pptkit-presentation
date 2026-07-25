@@ -170,6 +170,35 @@ test("rejects incompatible compositions and unsafe theme overrides", () => {
   assert.throws(() => authorDeck(missingImage), /No layout recipe supports image slide image with visual intent image-led/);
 });
 
+test("rejects layout-incompatible sessions before preview transfer", () => {
+  const now = "2026-07-25T00:00:00.000Z";
+  const session = {
+    id: "layout-preflight",
+    revision: 1,
+    createdAt: now,
+    updatedAt: now,
+    deck: saasHuntDeck(),
+    sources: [{ id: "src-01-slides", name: "slides.md", mimeType: "text/markdown", type: "text", warnings: [] }],
+    assets: [],
+  };
+  const incompatibleIntent = structuredClone(session);
+  incompatibleIntent.deck.slides.find((slide) => slide.id === "features").visualIntent = "content-led";
+  assert.throws(
+    () => parseDeckSession(incompatibleIntent),
+    /No layout recipe supports table slide features with visual intent content-led density balanced/,
+  );
+
+  const incompatibleLedger = structuredClone(session);
+  const features = incompatibleLedger.deck.slides.find((slide) => slide.id === "features");
+  features.composition = "ledger";
+  features.table.headers.push("Stage");
+  features.table.rows = features.table.rows.map((row) => [...row, "Available"]);
+  assert.throws(
+    () => parseDeckSession(incompatibleLedger),
+    /No layout recipe supports table slide features with composition ledger density balanced/,
+  );
+});
+
 test("authors every role without structural failures across every theme", () => {
   for (const theme of ["clean-business", "swiss-grid", "editorial-story"]) {
     const spec = allRolesDeck(theme);
@@ -182,9 +211,10 @@ test("authors every role without structural failures across every theme", () => 
 
 test("renders structured process titles and details across every process recipe", () => {
   for (const theme of ["clean-business", "swiss-grid", "editorial-story"]) {
-    for (const composition of ["timeline", "ledger", "divided"]) {
+    for (const composition of ["timeline", "grid", "ledger", "divided"]) {
       const spec = deck(theme);
       spec.slides[1].composition = composition;
+      spec.slides[1].visualIntent = "content-led";
       const normalized = normalizePresentation(presentationOf(spec));
       const text = normalized.slides[1].elements
         .filter((element) => element.type === "text")
@@ -194,6 +224,30 @@ test("renders structured process titles and details across every process recipe"
       assert.match(text, /Load local evidence/);
     }
   }
+});
+
+test("renders a five-step process grid as editable ordered modules", () => {
+  const spec = deck("swiss-grid");
+  spec.slides[1].composition = "grid";
+  spec.slides[1].visualIntent = "content-led";
+  spec.slides[1].steps = [
+    { title: "Coming Soon Listings", detail: "Build awareness before release." },
+    { title: "Product Launch Pages", detail: "Create a durable product destination." },
+    { title: "Product Categories", detail: "Create browsing paths." },
+    { title: "Search & Discovery", detail: "Find relevant SaaS quickly." },
+    { title: "Product Showcase", detail: "Keep products visible." },
+  ];
+  const normalized = normalizePresentation(presentationOf(spec));
+  const processSlide = normalized.slides[1];
+  const text = processSlide.elements
+    .filter((element) => element.type === "text")
+    .map((element) => element.plainText)
+    .join("\n");
+  assert.match(text, /Coming Soon Listings/);
+  assert.match(text, /Product Showcase/);
+  assert.match(text, /Build awareness before release/);
+  assert.equal(processSlide.elements.filter((element) => element.type === "shape").length >= 5, true);
+  assert.deepEqual(inspectStructure(normalized).filter((issue) => issue.severity === "error"), []);
 });
 
 test("authors every registered recipe without geometry errors across themes", () => {

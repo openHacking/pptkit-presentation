@@ -55,6 +55,23 @@ The ten public roles remain semantic. Composition is an optional public intent a
 - `image-background`: full-bleed imagery with a deliberate high-contrast text field.
 - `color-field`: a large tonal field that creates hierarchy or a narrative transition.
 
+Composition names are not a global compatibility list. Use this role map when an explicit composition is necessary; otherwise omit `composition` and let the planner choose:
+
+| Role | Supported compositions | Default visual intent |
+| --- | --- | --- |
+| `cover` | `hero`, `split`, `image-background`, `color-field` | recipe-defined |
+| `agenda` | `ledger`, `grid` | `content-led` |
+| `section` | `hero`, `divided`, `image-background`, `color-field` | recipe-defined |
+| `statement` | `hero`, `split`, `divided`, `image-background`, `color-field` | recipe-defined |
+| `image` | `image-hero`, `image-split`, `split`, `image-background` | `image-led` |
+| `kpi` | `grid`, `ledger`, `color-field`, `image-split` | recipe-defined |
+| `comparison` | `divided`, `split` | `content-led` |
+| `process` | `timeline`, `grid`, `ledger`, `divided` | `content-led` |
+| `table` | `ledger` (exactly 2 headers), `grid`, `split` (chart data) | `data-led` |
+| `closing` | `hero`, `split`, `image-background`, `color-field` | recipe-defined |
+
+The map describes semantic support, not a promise that every content shape fits every density. `process + grid` is an ordered modular grid for 2–6 steps; it is appropriate for a sequence of connected surfaces or stages. `agenda + grid` is for orientation among genuinely equal topics. A table remains a table when rows and columns carry structured data; do not convert it to `process` merely to obtain a grid.
+
 Do not use numbering unless order, navigation, or comparison needs it. Do not place every idea in a card. Do not repeat the same main composition on three consecutive slides.
 
 Theme tokens are safety rails, not a page template. Brand adaptation may override the six theme colors and heading/body fonts, but must preserve contrast and the typography floors. Never expose arbitrary coordinates, margins, radii, or per-element sizes through the deck spec.
@@ -96,7 +113,9 @@ Use the exact `SlidePlan` field shapes below. Do not substitute older or display
 - `visualIntent`: one of `content-led`, `image-led`, `color-led`, `data-led`, or `type-led`.
 - `steps`: `[{ "title": "Prepare", "detail": "Optional supporting explanation" }, { "title": "Review" }]`; use 2–6 objects and never string entries.
 
-Every `ExtractedSource` uses `id`, `name`, `mimeType`, `type`, and `warnings`; text sources put extracted text in `content`. Fields such as `kind` and `slideCount` are not part of `DeckSession`. Before transfer, parse the completed file with `parseDeckSession()`; a JSON syntax check alone is insufficient.
+Do not fill `composition` or `visualIntent` mechanically. Omit them unless the narrative requires a specific treatment and the role/content shape supports it. Use the role map above as the allow-list, not the union of all composition names. Table recipes are always `data-led`; a table `ledger` requires exactly two headers, a table `split` requires chart data, and an ordinary table can use `grid`. Agenda, comparison, and process recipes are `content-led`.
+
+Every `ExtractedSource` uses `id`, `name`, `mimeType`, `type`, and `warnings`; text sources put extracted text in `content`. Fields such as `kind` and `slideCount` are not part of `DeckSession`. Before transfer, parse the completed file with `parseDeckSession()` or prepare it with `preparePptkitTransfer()`; both perform schema and layout-recipe validation. A JSON syntax check alone is insufficient.
 
 Minimal valid role shapes (all also require `id`, `role`, and `title`):
 
