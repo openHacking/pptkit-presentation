@@ -119,4 +119,4 @@ For PPTX restyle work, populate `ExtractedSource.pptx`, set `brief.mode` to `res
 
 ## Export
 
-When the user clicks **Generate & download PPTX**, or explicitly asks the agent to export/download, the application generates bytes, inspects ZIP/XML parts, downloads `build-report.json`, and downloads the PPTX only when package checks pass. Browser preview does not replace a final PowerPoint or LibreOffice review.
+When the user clicks **Generate & download PPTX**, or explicitly asks the agent to export/download, the application generates bytes, inspects ZIP/XML parts, and downloads only the PPTX when package checks pass. Diagnostics remain available in the preview findings. Browser preview does not replace a final PowerPoint or LibreOffice review.

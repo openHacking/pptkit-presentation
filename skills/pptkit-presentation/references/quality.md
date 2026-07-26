@@ -15,7 +15,7 @@ In browser mode, require a successful session import and SVG render. In Node mod
 - after the user requests export: a readable ZIP containing content types, presentation, slide, and relationship parts
 - after export: XML-shaped package parts with matching slide count
 
-Warnings are deliverables, not console noise. Keep them in browser findings and `build-report.json`, or in the Node `output/build-report.json`.
+Warnings are deliverables, not console noise. Keep them in browser findings, or in the Node `output/build-report.json`.
 
 ## Optional rendering
 

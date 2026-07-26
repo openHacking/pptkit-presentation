@@ -76,7 +76,6 @@ let layoutDecisions: BuildReport["layoutDecisions"] = [];
 let preview: SvgRenderResult | undefined;
 let currentIndex = 0;
 let findings: StructuralIssue[] = [];
-let currentDiagnostics: BuildReport["diagnostics"] = [];
 let currentExportStatus: BuildReport["exportStatus"] = "not-run";
 let objectUrls: string[] = [];
 let persisted = true;
@@ -285,7 +284,6 @@ function waitForSessionAssets(activeSession: DeckSession, changed: string[] = []
   layoutDecisions = [];
   preview = undefined;
   findings = [];
-  currentDiagnostics = [];
   currentExportStatus = "not-run";
   previewStatus = "waiting";
   downloadButton.disabled = true;
@@ -517,7 +515,6 @@ async function renderSession(nextSession: DeckSession, changed: string[] = []) {
   objectUrls = urls;
   presentation = nextPresentation;
   layoutDecisions = authored.layoutDecisions;
-  currentDiagnostics = nextDiagnostics;
   currentExportStatus = "not-run";
   preview = nextPreview;
   findings = nextFindings;
@@ -561,7 +558,6 @@ function resetPreviewState(message = "Ready") {
   preview = undefined;
   currentIndex = 0;
   findings = [];
-  currentDiagnostics = [];
   currentExportStatus = "not-run";
   transfers = [];
   missingAssetCount = 0;
@@ -636,19 +632,13 @@ async function generateAndDownload() {
     if (packageChecks.slideParts !== presentation.slides.length) exportIssues.push({ severity: "error", code: "slide-part-count", message: `Expected ${presentation.slides.length} slide parts, found ${packageChecks.slideParts}.` });
     findings = [...findings, ...restyleAudit.issues, ...exportIssues];
     showFindings(findings);
-    const report: BuildReport = {
-      runtime: "browser", sessionId: session.id, slideCount: result.slideCount, byteLength: result.byteLength,
-      diagnostics: currentDiagnostics, exportWarnings: result.warnings, structuralIssues: findings, layoutDecisions, packageChecks,
-      previewStatus: preview?.status ?? "failed", exportStatus: exportIssues.some((issue) => issue.severity === "error") ? "failed" : restyleAudit.issues.length > 0 ? "generated-with-warnings" : "generated",
-      renderStatus: "not-run", restyleAudit, generatedAt: new Date().toISOString(),
-    };
-    currentExportStatus = report.exportStatus;
-    download(new TextEncoder().encode(`${JSON.stringify(report, null, 2)}\n`), "application/json", "build-report.json");
-    if (report.exportStatus === "generated" || report.exportStatus === "generated-with-warnings") {
+    const exportStatus: BuildReport["exportStatus"] = exportIssues.some((issue) => issue.severity === "error") ? "failed" : restyleAudit.issues.length > 0 ? "generated-with-warnings" : "generated";
+    currentExportStatus = exportStatus;
+    if (exportStatus === "generated" || exportStatus === "generated-with-warnings") {
       download(result.bytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation", `${session.id}.pptx`);
-      setStatus(`Generated ${result.slideCount} slides (${result.byteLength} bytes) and passed package inspection${report.exportStatus === "generated-with-warnings" ? " with restyle warnings" : ""}.`, "success");
+      setStatus(`Generated ${result.slideCount} slides (${result.byteLength} bytes) and passed package inspection${exportStatus === "generated-with-warnings" ? " with restyle warnings" : ""}.`, "success");
     } else {
-      setStatus("PPTX failed package inspection. The build report was downloaded; the PPTX was withheld.", "error");
+      setStatus("PPTX failed package inspection. Review the findings for details; the PPTX was not downloaded.", "error");
       setFindingsOpen(true);
     }
   } catch (error) {

@@ -395,7 +395,7 @@ test("imports, persists, revises, previews, and exports through the chunk protoc
   await page.getByRole("button", { name: "Generate & download PPTX" }).click();
   await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("passed package inspection"));
   await new Promise((resolve) => setTimeout(resolve, 100));
-  assert.deepEqual(downloads.map((download) => download.suggestedFilename()).sort(), ["browser-review.pptx", "build-report.json"]);
+  assert.deepEqual(downloads.map((download) => download.suggestedFilename()), ["browser-review.pptx"]);
   const pptx = downloads.find((download) => download.suggestedFilename().endsWith(".pptx"));
   assert.ok(pptx);
 });
