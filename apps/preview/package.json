@@ -6,7 +6,7 @@
   "description": "HTTPS-ready local-first browser review application for PPTKit deck sessions.",
   "scripts": {
     "build": "vite build",
-    "dev": "vite --host 127.0.0.1",
+    "dev": "node ../../scripts/dev-preview.mjs",
     "preview": "vite preview --host 127.0.0.1",
     "test": "pnpm run build && node --test test/*.test.mjs",
     "typecheck": "tsc -b tsconfig.json --pretty false"

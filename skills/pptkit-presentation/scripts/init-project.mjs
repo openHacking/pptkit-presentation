@@ -25,7 +25,7 @@ function usage(message) {
   if (message) process.stderr.write(`${message}\n\n`);
   process.stderr.write(
     "Usage: init-project.mjs --output <directory> --fallback-reason <reason> --fallback-evidence <text> " +
-      "--browser-check <failed|not-required> --browser-step <step> [--preview-url <https-url>] " +
+      "--browser-check <failed|not-required> --browser-step <step> [--preview-url <secure-or-loopback-url>] " +
       "[--iab-evidence <step-and-result> --chrome-evidence <step-and-result>] " +
       "[--title <slug>] [--theme <id>] [--no-install]\n",
   );
@@ -82,9 +82,14 @@ function parseArgs(args) {
   try {
     parsedPreviewUrl = new URL(previewUrl);
   } catch {
-    usage("--preview-url must be a valid HTTPS URL");
+    usage("--preview-url must be a valid HTTPS URL or an HTTP loopback development URL");
   }
-  if (parsedPreviewUrl.protocol !== "https:") usage("--preview-url must be a valid HTTPS URL");
+  const loopbackHosts = new Set(["127.0.0.1", "localhost", "[::1]"]);
+  const isSecure = parsedPreviewUrl.protocol === "https:";
+  const isLoopbackDevelopment = parsedPreviewUrl.protocol === "http:" && loopbackHosts.has(parsedPreviewUrl.hostname);
+  if (!isSecure && !isLoopbackDevelopment) {
+    usage("--preview-url must be a valid HTTPS URL or an HTTP loopback development URL");
+  }
   options["preview-url"] = parsedPreviewUrl.href;
   return options;
 }
@@ -129,7 +134,7 @@ const runtimeDecision = {
 writeFileSync(path.join(output, "runtime-decision.json"), `${JSON.stringify(runtimeDecision, null, 2)}\n`);
 
 if (options.install) {
-  const result = spawnSync("npm", ["install", "--no-audit", "--no-fund"], {
+  const result = spawnSync("npm", ["install", "--no-audit", "--no-fund", "--prefer-offline"], {
     cwd: output,
     stdio: "inherit",
   });

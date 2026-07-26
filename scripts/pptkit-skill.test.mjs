@@ -21,6 +21,22 @@ const testFallbackArgs = [
   "Automated test requires isolated local output",
 ];
 
+test("preview dev command routes new Codex tasks to the repository skill and loopback preview", () => {
+  const previewManifest = JSON.parse(readFileSync(path.join(repoRoot, "apps", "preview", "package.json"), "utf8"));
+  const devScript = readFileSync(path.join(repoRoot, "scripts", "dev-preview.mjs"), "utf8");
+  const agents = readFileSync(path.join(repoRoot, "AGENTS.md"), "utf8");
+  const readme = readFileSync(path.join(repoRoot, "README.md"), "utf8");
+
+  assert.equal(previewManifest.scripts.dev, "node ../../scripts/dev-preview.mjs");
+  assert.match(devScript, /\.pptkit-local-preview\.json/);
+  assert.match(devScript, /http:\/\/127\.0\.0\.1:5173\//);
+  assert.match(devScript, /skills", "pptkit-presentation/);
+  assert.match(agents, /read it before any PPTKit request/i);
+  assert.match(agents, /Use its `skillPath` as the source of truth instead of a globally installed copy/i);
+  assert.match(readme, /open a new task/i);
+  assert.match(readme, /Already-open tasks do not reload/i);
+});
+
 test("presentation skill requires progressive native interaction and an approval gate", () => {
   const skill = readFileSync(path.join(skillRoot, "SKILL.md"), "utf8");
   const workflow = readFileSync(path.join(skillRoot, "references", "workflow.md"), "utf8");
@@ -32,7 +48,9 @@ test("presentation skill requires progressive native interaction and an approval
   const quality = readFileSync(path.join(skillRoot, "references", "quality.md"), "utf8");
   const guide = readFileSync(path.join(repoRoot, "docs", "guides", "presentation-skill.md"), "utf8");
 
-  assert.match(skill, /one at a time in this order: purpose and audience, theme, then page count and asset strategy/i);
+  assert.match(skill, /Combine the missing purpose\/audience, theme, and scope\/material decisions into one native form/i);
+  assert.match(skill, /Fast path and reference routing/i);
+  assert.match(skill, /Do not reopen a reference, browser `documentation\(\)`, resolved preview URL, or runtime capability/i);
   assert.match(skill, /request_user_input/i);
   assert.match(skill, /Approve and generate.*Change the plan.*Cancel/is);
   assert.match(skill, /Do not create artifacts, open a preview, install dependencies, or generate PPTX bytes before/i);
@@ -61,6 +79,7 @@ test("presentation skill requires progressive native interaction and an approval
   assert.match(browserWorkflow, /PPTKIT_PREVIEW_URL/);
   assert.match(browserWorkflow, /https:\/\/openhacking\.github\.io\/pptkit-presentation\//);
   assert.match(browserWorkflow, /explicitly supplied[\s\S]*PPTKIT_PREVIEW_URL[\s\S]*official PPTKit preview application/i);
+  assert.match(browserWorkflow, /Allow HTTP only for the loopback hosts/i);
   assert.match(browserWorkflow, /resolved URL is unreachable or incompatible/i);
   assert.match(browserWorkflow, /Do not give up solely because the initial tool list omits browser controls/i);
   assert.match(browserWorkflow, /successful open or focus operation in either browser as proof/i);
@@ -90,10 +109,20 @@ test("presentation skill requires progressive native interaction and an approval
   assert.doesNotMatch(runtimeRouting, /asset-transfer-limit|asset-limit/);
   assert.match(runtimeRouting, /browser-transfer-failed/);
   assert.match(transferHelper, /DEFAULT_CHUNK_BYTES = 512 \* 1024/);
+  assert.match(transferHelper, /DEFAULT_BATCH_CHUNKS = 8/);
+  assert.match(transferHelper, /transferPptkitSession/);
+  assert.match(browserWorkflow, /mode: "batch"/);
+  assert.match(browserWorkflow, /one-call helper/i);
+  assert.match(browserWorkflow, /Do not separately run `preparePptkitTransfer\(\)`/i);
+  assert.match(browserWorkflow, /ready-with-warnings/);
+  assert.match(browserWorkflow, /source-receipt\.mjs/);
+  assert.match(browserWorkflow, /write `deck-brief\.md`, `content\/sources\.json`, and `deck-session\.json` in one artifact phase/i);
+  assert.match(browserWorkflow, /single session and layout-recipe preflight/i);
   assert.match(nodeWorkflow, /State the fallback reason/i);
   assert.match(nodeWorkflow, /runtime-decision\.json/i);
   assert.match(runtimeRouting, /Do not read or execute `node-workflow\.md` while the decision is unresolved/i);
   assert.match(runtimeRouting, /Do not claim a browser failure without a tool result/i);
+  assert.match(runtimeRouting, /explicitly supplied HTTP loopback URL/i);
   assert.match(runtimeRouting, /continue to step 4 instead of Node/i);
   assert.match(runtimeRouting, /both Codex browser channels are unavailable[\s\S]*automatically continue with `node-workflow\.md`/i);
   assert.match(runtimeRouting, /do not call `request_user_input` or ask the user to choose a runtime/i);
@@ -119,7 +148,7 @@ test("presentation skill requires progressive native interaction and an approval
   assert.match(guide, /does not treat an abbreviated initial tool list as evidence that no browser exists/i);
   assert.match(guide, /no runtime-choice question interrupts generation/i);
   assert.match(guide, /does not claim it can open Codex settings or trigger a system enablement dialog/i);
-  assert.match(guide, /one at a time/i);
+  assert.match(guide, /one grouped native form/i);
   assert.match(guide, /Approve and generate.*Change the plan.*Cancel/is);
 });
 
@@ -150,7 +179,7 @@ test("transfer helper creates deterministic resumable envelopes without leaking 
       },
       sources: [], assets: [],
     }));
-    const { preparePptkitTransfer } = await import(pathToFileURL(path.join(skillRoot, "scripts", "transfer-payload.mjs")).href);
+    const { createPptkitTransferBatch, preparePptkitTransfer } = await import(pathToFileURL(path.join(skillRoot, "scripts", "transfer-payload.mjs")).href);
     await assert.rejects(() => preparePptkitTransfer({ file, kind: "session", payloadId: "wrong-id", mimeType: "application/json", chunkBytes: 8 }), /does not match session\.id/);
     const prepared = await preparePptkitTransfer({ file, kind: "session", payloadId: "transfer-test", mimeType: "application/json", chunkBytes: 8 });
     assert.ok(prepared.chunkCount > 1);
@@ -159,6 +188,15 @@ test("transfer helper creates deterministic resumable envelopes without leaking 
     assert.equal(envelope.chunkByteLength, 8);
     assert.equal(envelope.dataBase64.length > 0, true);
     assert.doesNotMatch(JSON.stringify(envelope), new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    const batch = JSON.parse(await prepared.batchEnvelope([0, 1]));
+    assert.equal(batch.mode, "batch");
+    assert.equal(batch.chunks.length, 2);
+    assert.equal(batch.chunks[0].protocol, "pptkit-transfer");
+    const firstEnvelope = await prepared.envelope(0);
+    const secondEnvelope = await prepared.envelope(1);
+    const combined = JSON.parse(createPptkitTransferBatch([firstEnvelope, secondEnvelope]));
+    assert.equal(combined.chunks.length, 2);
+    assert.throws(() => createPptkitTransferBatch([firstEnvelope, firstEnvelope]), /repeat a chunk/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -174,6 +212,179 @@ test("transfer helper rejects invalid sessions before creating envelopes", async
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("one-call browser transfer validates, submits, and waits for matching SVG preview", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-transfer-fast-path-"));
+  const file = path.join(root, "session.json");
+  try {
+    const now = "2026-07-25T00:00:00.000Z";
+    writeFileSync(file, JSON.stringify({
+      id: "fast-path", revision: 2, createdAt: now, updatedAt: now,
+      deck: {
+        brief: { title: "Fast path", audience: "QA", purpose: "Test browser transfer", language: "en-US", slideCountRange: [1, 1], imagePolicy: "None", constraints: [] },
+        design: { theme: { id: "clean-business" }, seed: "fast-path", variation: "balanced" },
+        slides: [{ id: "cover", role: "cover", title: "Fast path" }],
+      },
+      sources: [], assets: [],
+    }));
+    let expanded = false;
+    let inputValue = "";
+    let toggleClicks = 0;
+    let submitClicks = 0;
+    let bridge = {
+      protocol: "pptkit-transfer",
+      maxChunkBytes: 512 * 1024,
+      submissionModes: ["single", "batch"],
+      maxBatchChunks: 8,
+      apis: { Blob: true, URL: true, crypto: true, fetch: true, indexedDB: true, storageEstimate: true, structuredClone: true, Uint8Array: true },
+      state: { transfers: [], preview: { status: "waiting", persisted: true, slideCount: 0, svgCount: 0, findings: [], qa: {} } },
+    };
+    const locator = (testId) => ({
+      async count() { return 1; },
+      async textContent() { return testId === "pptkit-preview-bridge" ? JSON.stringify(bridge) : ""; },
+      async getAttribute(name) { return testId === "pptkit-transfer-toggle" && name === "aria-expanded" ? String(expanded) : null; },
+      async isVisible() { return true; },
+      async isEnabled() { return true; },
+      async fill(value) { inputValue = value; },
+      async click() {
+        if (testId === "pptkit-transfer-toggle") {
+          expanded = true;
+          toggleClicks += 1;
+          return;
+        }
+        if (testId !== "pptkit-transfer-submit") return;
+        submitClicks += 1;
+        const submission = JSON.parse(inputValue);
+        const chunks = submission.mode === "batch" ? submission.chunks : [submission];
+        const chunk = chunks[0];
+        bridge = {
+          ...bridge,
+          state: {
+            transfers: [{
+              transferId: chunk.transferId,
+              kind: "session",
+              payloadId: "fast-path",
+              received: [0],
+              missing: [],
+              chunkCount: 1,
+              status: "completed",
+            }],
+            preview: {
+              sessionId: "fast-path",
+              revision: 2,
+              status: "ready",
+              persisted: true,
+              slideCount: 1,
+              svgCount: 1,
+              findings: [],
+              qa: { blockingFindings: 0, warningFindings: 0 },
+            },
+          },
+        };
+      },
+    });
+    const tab = {
+      playwright: {
+        getByTestId: locator,
+        locator() {
+          return { async waitFor() {} };
+        },
+      },
+    };
+    const { transferPptkitSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "transfer-payload.mjs")).href);
+    const result = await transferPptkitSession({ tab, file, payloadId: "fast-path" });
+    assert.equal(result.status, "ready");
+    assert.equal(result.revision, 2);
+    assert.equal(result.svgCount, 1);
+    assert.equal(result.batchesSubmitted, 1);
+    assert.equal(toggleClicks, 1);
+    assert.equal(submitClicks, 1);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("one-call browser transfer rejects an invalid batch capability before submission", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-transfer-fast-bridge-"));
+  const file = path.join(root, "session.json");
+  try {
+    const now = "2026-07-25T00:00:00.000Z";
+    writeFileSync(file, JSON.stringify({
+      id: "fast-bridge", revision: 1, createdAt: now, updatedAt: now,
+      deck: {
+        brief: { title: "Fast bridge", audience: "QA", purpose: "Test bridge validation", language: "en-US", slideCountRange: [1, 1], imagePolicy: "None", constraints: [] },
+        design: { theme: { id: "clean-business" }, seed: "fast-bridge", variation: "balanced" },
+        slides: [{ id: "cover", role: "cover", title: "Fast bridge" }],
+      },
+      sources: [], assets: [],
+    }));
+    let submissions = 0;
+    const bridge = {
+      protocol: "pptkit-transfer",
+      maxChunkBytes: 512 * 1024,
+      submissionModes: ["single", "batch"],
+      maxBatchChunks: 0,
+      apis: { Blob: true, URL: true, crypto: true, fetch: true, indexedDB: true, storageEstimate: true, structuredClone: true, Uint8Array: true },
+      state: { transfers: [], preview: { status: "waiting", persisted: true, slideCount: 0, svgCount: 0, findings: [], qa: {} } },
+    };
+    const locator = (testId) => ({
+      async count() { return 1; },
+      async textContent() { return testId === "pptkit-preview-bridge" ? JSON.stringify(bridge) : ""; },
+      async click() { submissions += 1; },
+    });
+    const tab = { playwright: { getByTestId: locator, locator } };
+    const { transferPptkitSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "transfer-payload.mjs")).href);
+    await assert.rejects(
+      () => transferPptkitSession({ tab, file, payloadId: "fast-bridge" }),
+      /invalid maxBatchChunks/,
+    );
+    assert.equal(submissions, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("one-call browser transfer fails before browser interaction when layout intent is incompatible", async () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-transfer-fast-invalid-"));
+  const file = path.join(root, "session.json");
+  try {
+    const now = "2026-07-25T00:00:00.000Z";
+    writeFileSync(file, JSON.stringify({
+      id: "fast-invalid", revision: 1, createdAt: now, updatedAt: now,
+      deck: {
+        brief: { title: "Invalid", audience: "QA", purpose: "Test preflight", language: "en-US", slideCountRange: [1, 1], imagePolicy: "None", constraints: [] },
+        design: { theme: { id: "clean-business" }, seed: "fast-invalid", variation: "balanced" },
+        slides: [{ id: "statement", role: "statement", title: "Invalid split", message: "Missing support.", composition: "split" }],
+      },
+      sources: [], assets: [],
+    }));
+    let browserReads = 0;
+    const tab = { playwright: { getByTestId() { browserReads += 1; throw new Error("must not read browser"); } } };
+    const { transferPptkitSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "transfer-payload.mjs")).href);
+    await assert.rejects(
+      () => transferPptkitSession({ tab, file, payloadId: "fast-invalid" }),
+      /Statement \+ split requires message and at least one items entry/,
+    );
+    assert.equal(browserReads, 0);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("browser source receipt normalizes inspected sources in one stable batch", async () => {
+  const { normalizeSourceReceipt } = await import(pathToFileURL(path.join(skillRoot, "scripts", "source-receipt.mjs")).href);
+  const receipt = normalizeSourceReceipt([
+    { id: "src-01-brief", name: "brief.md", mimeType: "text/markdown", type: "text", content: "Evidence" },
+    { id: "src-02-report", name: "report.pdf", mimeType: "application/pdf", type: "document", warnings: ["Review chart on page 3"] },
+  ], "2026-07-25T00:00:00.000Z");
+  assert.equal(receipt.generatedAt, "2026-07-25T00:00:00.000Z");
+  assert.deepEqual(receipt.sources.map((source) => source.id), ["src-01-brief", "src-02-report"]);
+  assert.deepEqual(receipt.sources[0].warnings, []);
+  assert.throws(() => normalizeSourceReceipt([
+    { id: "duplicate", name: "a.md", mimeType: "text/markdown", type: "text" },
+    { id: "duplicate", name: "b.md", mimeType: "text/markdown", type: "text" },
+  ]), /duplicate source id/i);
 });
 
 test("skill and workflow session validators agree on structured process steps", async () => {
@@ -336,6 +547,35 @@ test("initializer creates an isolated starter and applies theme", () => {
   }
 });
 
+test("initializer accepts loopback HTTP previews and rejects remote HTTP previews", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-skill-preview-url-"));
+  try {
+    const localOutput = path.join(root, "local");
+    const local = spawnSync(
+      process.execPath,
+      [initScript, "--output", localOutput, "--no-install", "--preview-url", "http://127.0.0.1:5173/", ...testFallbackArgs],
+      { encoding: "utf8" },
+    );
+    assert.equal(local.status, 0, local.stderr);
+    assert.equal(
+      JSON.parse(readFileSync(path.join(localOutput, "runtime-decision.json"), "utf8")).resolvedPreviewUrl,
+      "http://127.0.0.1:5173/",
+    );
+
+    const remoteOutput = path.join(root, "remote");
+    const remote = spawnSync(
+      process.execPath,
+      [initScript, "--output", remoteOutput, "--no-install", "--preview-url", "http://preview.example.com/", ...testFallbackArgs],
+      { encoding: "utf8" },
+    );
+    assert.equal(remote.status, 2);
+    assert.match(remote.stderr, /HTTPS URL or an HTTP loopback development URL/i);
+    assert.equal(existsSync(remoteOutput), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("initializer rejects missing or contradictory runtime-routing evidence before creating output", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-skill-routing-"));
   try {
@@ -486,6 +726,35 @@ test("corrupt PPTX extraction reports failure without modifying source bytes", (
     const extracted = JSON.parse(readFileSync(path.join(project, "content", "sources.json"), "utf8")).sources[0];
     assert.match(extracted.warnings.join(" "), /Extraction failed:/i);
     assert.ok(readFileSync(source).equals(bytes));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("mixed concurrent extraction preserves input order and isolates file failures", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-skill-mixed-extract-"));
+  const project = path.join(root, "deck");
+  try {
+    assert.equal(spawnSync(process.execPath, [initScript, "--output", project, "--no-install", ...testFallbackArgs], { encoding: "utf8" }).status, 0);
+    wireWorkspace(project);
+    const text = path.join(root, "first.txt");
+    const corrupt = path.join(root, "second.pptx");
+    const image = path.join(root, "third.svg");
+    writeFileSync(text, "First source remains available.\n");
+    writeFileSync(corrupt, "not-a-pptx-package");
+    writeFileSync(image, '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80"/></svg>');
+
+    const result = runTypeScript(project, "src/extract-sources.ts", [text, corrupt, image], { ...process.env, PATH: "" });
+    assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const sources = JSON.parse(readFileSync(path.join(project, "content", "sources.json"), "utf8")).sources;
+    const assets = JSON.parse(readFileSync(path.join(project, "content", "assets.json"), "utf8")).assets;
+    assert.deepEqual(sources.map((source) => source.id), ["src-01-first", "src-02-second", "src-03-third"]);
+    assert.match(sources[0].content, /First source remains available/);
+    assert.match(sources[1].warnings.join(" "), /Extraction failed:/i);
+    assert.equal(sources[2].assetId, "src-03-third.svg");
+    assert.deepEqual([sources[2].width, sources[2].height], [120, 80]);
+    assert.deepEqual(assets.map((asset) => asset.id), ["src-03-third.svg"]);
+    assert.equal(existsSync(path.join(project, "assets", "src-03-third.svg")), true);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

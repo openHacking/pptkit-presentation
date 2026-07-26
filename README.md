@@ -94,12 +94,15 @@ PPTKit Presentation requires Node.js 20 or newer and pnpm 10.13.1.
 
 ```bash
 pnpm install
+pnpm --filter presentation-preview dev
 pnpm build
 pnpm typecheck
 pnpm lint
 pnpm test
 pnpm run pack:check
 ```
+
+The preview dev command writes the repository skill path and active preview URL to `.pptkit-local-preview.json`. The root `AGENTS.md` makes new Codex tasks use those local development inputs instead of globally installed or published copies. Start the command, then open a new task in this repository to exercise the uncommitted skill against `http://127.0.0.1:5173/`. Already-open tasks do not reload repository instructions or skill definitions.
 
 ## Documentation
 

@@ -4,7 +4,7 @@ Use this gate only after the user has approved generation. It owns the Browser-v
 
 ## State machine
 
-1. Resolve the preview URL from the user or host, `PPTKIT_PREVIEW_URL`, or `https://openhacking.github.io/pptkit-presentation/`, in that order.
+1. Resolve the preview URL from the user or host, `PPTKIT_PREVIEW_URL`, or `https://openhacking.github.io/pptkit-presentation/`, in that order. Require HTTPS except for an explicitly supplied HTTP loopback URL using `127.0.0.1`, `localhost`, or `[::1]`.
 2. Check whether the request itself makes browser preview unsuitable:
    - the user requires unattended local output; or
    - the user requires Office/LibreOffice rendering.
@@ -24,6 +24,6 @@ The guarded Node initializer requires all of these values and writes them to `ru
 - `browser-step`: `setup`, `selection`, `navigation`, `compatibility`, `api-check`, `transfer`, or `user-requirement`, consistent with the reason;
 - `fallback-evidence`: the concrete browser/bridge failure result or user requirement. For Codex setup, selection, or navigation fallback, keep the existing string field and include both labeled results, for example `iab: <step and error>; chrome: <unavailable result, step and error>`; and
 - `iab-evidence` and `chrome-evidence`: required as separate `<step>: <concrete result>` fields for every `browser-check: failed` decision. A missing control in the initial tool list, `not visible`, or `not attempted` is rejected as evidence. These structured fields prevent a free-form summary from silently skipping external Chrome; and
-- `preview-url`: the resolved HTTPS URL, defaulting to the official preview application.
+- `preview-url`: the resolved secure URL, allowing HTTP only for explicit loopback development and otherwise defaulting to the official HTTPS preview application.
 
 The initializer rejects missing, contradictory, or vague routing evidence before it creates the output directory. Never weaken, patch around, or fabricate this receipt to make initialization proceed.

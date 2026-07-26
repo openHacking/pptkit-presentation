@@ -30,14 +30,15 @@ const assets = await readCollection<SessionAsset>(path.resolve("content/assets.j
 const availableAssetIds = new Set(await readdir(path.resolve("assets")));
 const specIssues = validateDeckSpec(deckSpec, availableAssetIds);
 const { presentation: document, layoutDecisions } = authorDeck(deckSpec, (assetId) => resolveNodeAsset(assetId, mimeTypeForAsset(assetId)));
-const visualAudit = auditVisualRhythm(deckSpec, normalizePresentation(document), layoutDecisions);
+const normalizedPresentation = normalizePresentation(document);
+const visualAudit = auditVisualRhythm(deckSpec, normalizedPresentation, layoutDecisions);
 const diagnostics = validatePresentation(document);
 const diagnosticIssues: StructuralIssue[] = diagnostics
   .filter((item) => item.severity === "error")
   .map((item) => ({ severity: "error", code: item.code, message: item.message, slideId: item.slideId, elementId: item.elementId }));
 const structuralIssues = diagnostics.some((item) => item.severity === "error")
   ? [...specIssues, ...diagnosticIssues]
-  : [...specIssues, ...inspectStructure(normalizePresentation(document)), ...visualAudit.issues];
+  : [...specIssues, ...inspectStructure(normalizedPresentation), ...visualAudit.issues];
 
 let report: BuildReport = {
   runtime: "node",

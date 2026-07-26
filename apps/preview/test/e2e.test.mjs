@@ -69,23 +69,77 @@ async function sendPayload(page, { bytes, kind, payloadId, mimeType, sessionId, 
   const transferId = digest(Buffer.from([kind, payloadId, sessionId ?? "", sha256].join("\0")));
   const count = Math.ceil(bytes.byteLength / chunkBytes);
   const selectedIndexes = indexes ?? Array.from({ length: count }, (_, index) => index);
-  for (const index of selectedIndexes) {
+  const envelopes = selectedIndexes.map((index) => {
     const chunk = bytes.subarray(index * chunkBytes, Math.min(bytes.byteLength, (index + 1) * chunkBytes));
-    const envelope = JSON.stringify({
+    return {
       protocol, transferId, kind, payloadId, ...(sessionId ? { sessionId } : {}), mimeType,
       byteLength: bytes.byteLength, sha256, chunkIndex: index, chunkCount: count,
       chunkByteLength: chunk.byteLength, chunkSha256: digest(chunk), dataBase64: chunk.toString("base64"),
-    });
+    };
+  });
+  let submissionCount = 0;
+  for (let offset = 0; offset < envelopes.length; offset += 8) {
+    const batch = envelopes.slice(offset, offset + 8);
+    const submission = batch.length === 1 ? batch[0] : { protocol, mode: "batch", chunks: batch };
     const toggle = page.getByTestId("pptkit-transfer-toggle");
     if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
-    await page.getByTestId("pptkit-transfer-input").fill(envelope);
+    await page.getByTestId("pptkit-transfer-input").fill(JSON.stringify(submission));
     await page.getByTestId("pptkit-transfer-submit").click();
-    await page.waitForFunction(({ id, index }) => globalThis.__pptkitPreviewBridge.getState().transfers.some((item) => item.transferId === id && (item.received.includes(index) || item.status === "failed")), { id: transferId, index });
+    submissionCount += 1;
+    const lastIndex = batch.at(-1).chunkIndex;
+    await page.waitForFunction(({ id, index }) => globalThis.__pptkitPreviewBridge.getState().transfers.some((item) => item.transferId === id && (item.received.includes(index) || item.status === "failed")), { id: transferId, index: lastIndex });
     const state = await page.evaluate((id) => globalThis.__pptkitPreviewBridge.getState().transfers.find((item) => item.transferId === id), transferId);
     if (state?.status === "failed") throw new Error(state.error ?? `Transfer ${transferId} failed.`);
   }
   if (expectComplete) await page.waitForFunction((id) => globalThis.__pptkitPreviewBridge.getState().transfers.some((item) => item.transferId === id && item.status === "completed"), transferId);
-  return { transferId, chunkCount: count };
+  return { transferId, chunkCount: count, submissionCount };
+}
+
+async function sendPayloadsInSharedBatches(page, payloads, onPrepared = () => undefined) {
+  const prepared = payloads.map(({ bytes, kind, payloadId, mimeType, sessionId, indexes }) => {
+    const sha256 = digest(bytes);
+    const transferId = digest(Buffer.from([kind, payloadId, sessionId ?? "", sha256].join("\0")));
+    const chunkCount = Math.ceil(bytes.byteLength / chunkBytes);
+    const selectedIndexes = indexes ?? Array.from({ length: chunkCount }, (_, index) => index);
+    return {
+      transferId,
+      chunkCount,
+      envelopes: selectedIndexes.map((index) => {
+        const chunk = bytes.subarray(index * chunkBytes, Math.min(bytes.byteLength, (index + 1) * chunkBytes));
+        return {
+          protocol, transferId, kind, payloadId, ...(sessionId ? { sessionId } : {}), mimeType,
+          byteLength: bytes.byteLength, sha256, chunkIndex: index, chunkCount,
+          chunkByteLength: chunk.byteLength, chunkSha256: digest(chunk), dataBase64: chunk.toString("base64"),
+        };
+      }),
+    };
+  });
+  const envelopes = [];
+  for (let index = 0; ; index += 1) {
+    const round = prepared.map((item) => item.envelopes[index]).filter(Boolean);
+    if (round.length === 0) break;
+    envelopes.push(...round);
+  }
+  onPrepared();
+  let submissionCount = 0;
+  for (let offset = 0; offset < envelopes.length; offset += 8) {
+    const batch = envelopes.slice(offset, offset + 8);
+    const toggle = page.getByTestId("pptkit-transfer-toggle");
+    if (await toggle.getAttribute("aria-expanded") !== "true") await toggle.click();
+    await page.getByTestId("pptkit-transfer-input").fill(JSON.stringify(batch.length === 1 ? batch[0] : { protocol, mode: "batch", chunks: batch }));
+    await page.getByTestId("pptkit-transfer-submit").click();
+    submissionCount += 1;
+    await page.waitForFunction((entries) => entries.every(({ transferId, chunkIndex }) => {
+      const transfer = globalThis.__pptkitPreviewBridge.getState().transfers.find((item) => item.transferId === transferId);
+      return transfer && (transfer.received.includes(chunkIndex) || transfer.status === "failed");
+    }), batch.map(({ transferId, chunkIndex }) => ({ transferId, chunkIndex })));
+    const failed = await page.evaluate((transferIds) => globalThis.__pptkitPreviewBridge.getState().transfers
+      .find((item) => transferIds.includes(item.transferId) && item.status === "failed"), [...new Set(batch.map((item) => item.transferId))]);
+    if (failed) throw new Error(failed.error ?? `Transfer ${failed.transferId} failed.`);
+  }
+  await Promise.all(prepared.map(({ transferId }) => page.waitForFunction((id) =>
+    globalThis.__pptkitPreviewBridge.getState().transfers.some((item) => item.transferId === id && item.status === "completed"), transferId)));
+  return { submissionCount, chunkCount: envelopes.length };
 }
 
 async function assertNoPageScroll(page) {
@@ -127,6 +181,74 @@ function largeSvg(byteLength, label) {
   const start = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675"><rect width="1200" height="675" fill="#2457d6"/><text x="80" y="340" fill="white" font-size="72">${label}</text><!--`);
   const end = Buffer.from("--></svg>");
   return Buffer.concat([start, Buffer.alloc(byteLength - start.length - end.length, 120), end]);
+}
+
+function median(values) {
+  const sorted = [...values].sort((left, right) => left - right);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+async function measureLargeTransferRun(browser, url, payloads, assets) {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  try {
+    await page.goto(url);
+    await sendSession(page, fixture(1, assets, assets));
+    assert.equal((await domBridge(page)).state.preview.renderGeneration, 0);
+    assert.equal(await page.getByTestId("pptkit-transfer-toggle").isVisible(), true);
+    assert.equal(await page.getByRole("button", { name: "Generate & download PPTX" }).isEnabled(), false);
+
+    const partial = await sendPayload(page, {
+      bytes: payloads[0],
+      kind: "asset",
+      payloadId: assets[0].id,
+      sessionId: "browser-review",
+      mimeType: assets[0].mimeType,
+      indexes: [0, 1],
+      expectComplete: false,
+    });
+    assert.equal(await page.locator("#transfer-progress").isVisible(), true);
+    assert.match(await page.locator("#transfer-progress").innerText(), /Asset large-1 · 2 of \d+ parts · Receiving/);
+    await page.reload();
+    await page.waitForFunction((id) => globalThis.__pptkitPreviewBridge.getState().transfers.some((item) => item.transferId === id && item.received.includes(1)), partial.transferId);
+
+    await page.evaluate(() => {
+      globalThis.__pptkitBenchmarkReadyAt = undefined;
+      const bridge = document.querySelector('[data-testid="pptkit-preview-bridge"]');
+      const observer = new MutationObserver(() => {
+        try {
+          const status = JSON.parse(bridge.textContent).state.preview.status;
+          if (["ready", "ready-with-warnings"].includes(status)) {
+            globalThis.__pptkitBenchmarkReadyAt = performance.now();
+            observer.disconnect();
+          }
+        } catch {
+          // The bridge can be transiently empty while its text node is replaced.
+        }
+      });
+      observer.observe(bridge, { childList: true, characterData: true, subtree: true });
+    });
+    const startedAt = await page.evaluate(() => performance.now());
+    let submissionCount = partial.submissionCount;
+    const remaining = await sendPayloadsInSharedBatches(page, [
+      { bytes: payloads[0], kind: "asset", payloadId: assets[0].id, sessionId: "browser-review", mimeType: assets[0].mimeType, indexes: Array.from({ length: partial.chunkCount - 2 }, (_, index) => index + 2) },
+      ...assets.slice(1).map((asset, index) => ({ bytes: payloads[index + 1], kind: "asset", payloadId: asset.id, sessionId: "browser-review", mimeType: asset.mimeType })),
+    ]);
+    submissionCount += remaining.submissionCount;
+    await page.waitForFunction(() => ["ready", "ready-with-warnings"].includes(globalThis.__pptkitPreviewBridge.getState().preview.status) && document.querySelectorAll("#thumbnails button").length === 7);
+    const readyMilliseconds = await page.evaluate((start) => globalThis.__pptkitBenchmarkReadyAt - start, startedAt);
+    const heapBytes = await page.evaluate(() => "memory" in performance ? performance.memory.usedJSHeapSize : 0);
+    const bridge = await domBridge(page);
+    assert.equal(bridge.state.preview.renderGeneration, 1);
+    assert.equal(bridge.state.preview.svgCount, 7);
+    assert.deepEqual(bridge.state.preview.missingAssetIds, []);
+    assert.equal(await page.getByTestId("pptkit-contact-sheet").locator("button").count(), 7);
+    assert.equal(await page.getByRole("button", { name: "Generate & download PPTX" }).isEnabled(), true);
+    assert.equal(await page.evaluate(() => globalThis.__pptkitPreviewBridge.protocol), protocol);
+    return { readyMilliseconds, submissionCount, heapBytes };
+  } finally {
+    await context.close();
+  }
 }
 
 async function updateStoredTransfer(page, transferId, patch) {
@@ -208,10 +330,15 @@ test("imports, persists, revises, previews, and exports through the chunk protoc
   const compatibility = await domBridge(page);
   assert.equal(compatibility.protocol, protocol);
   assert.equal(compatibility.maxChunkBytes, chunkBytes);
+  assert.deepEqual(compatibility.submissionModes, ["single", "batch"]);
+  assert.equal(compatibility.maxBatchChunks, 8);
   assert.deepEqual(Object.values(compatibility.apis), Object.values(compatibility.apis).map(() => true));
   assert.equal(await page.locator("[data-testid=pptkit-preview-bridge]").count(), 1);
   assert.equal(await page.locator("[data-testid=pptkit-preview-bridge]").getAttribute("hidden"), null);
   assert.equal(await page.locator("[data-testid=pptkit-preview-bridge]").evaluate((node) => getComputedStyle(node).clipPath), "inset(50%)");
+  assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-session-id"), "");
+  assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-revision"), "");
+  assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-status"), "waiting");
 
   await sendSession(page, fixture());
   await page.waitForFunction(() => document.querySelectorAll("#thumbnails button").length === 3);
@@ -230,6 +357,13 @@ test("imports, persists, revises, previews, and exports through the chunk protoc
   assert.equal(await page.locator(".findings-mark-success").isVisible(), true);
   assert.equal(await page.getByRole("button", { name: "Generate & download PPTX" }).isEnabled(), true);
   assert.equal((await domBridge(page)).state.sessionId, "browser-review");
+  const readyBridge = await domBridge(page);
+  assert.equal(readyBridge.state.preview.status, "ready");
+  assert.equal(readyBridge.state.preview.qa.layoutDecisionCount, 3);
+  assert.equal(readyBridge.state.preview.qa.visualAuditIssueCount, 0);
+  assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-session-id"), "browser-review");
+  assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-revision"), "1");
+  assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-status"), "ready");
 
   const warningSession = fixture();
   warningSession.deck.brief.slideCountRange = [4, 4];
@@ -251,6 +385,7 @@ test("imports, persists, revises, previews, and exports through the chunk protoc
   await sendSession(page, fixture(2));
   await page.waitForFunction(() => document.querySelector("#status")?.getAttribute("title")?.includes("Changed slides: process"));
   assert.equal(await page.locator("#page-status").innerText(), "2 / 3");
+  assert.deepEqual((await domBridge(page)).state.preview.changedSlideIds, ["process"]);
 
   await page.reload();
   await page.waitForFunction(() => document.querySelectorAll("#thumbnails button").length === 3);
@@ -367,6 +502,85 @@ test("keeps failures transient and allows the same transfer to retry", async (t)
   assert.equal(retried.status, "completed");
 });
 
+test("aborts a conflicting batch without completing or persisting sibling transfers", async (t) => {
+  const { server, url } = await serve();
+  t.after(() => server.close());
+  const browser = await chromium.launch({ headless: true });
+  t.after(() => browser.close());
+  const page = await browser.newPage();
+  await page.goto(url);
+
+  const originalPayload = Buffer.from("ab");
+  const originalChunk = Buffer.from("a");
+  const conflictingChunk = Buffer.from("x");
+  const conflictBase = {
+    protocol,
+    transferId: "batch-conflict",
+    kind: "session",
+    payloadId: "batch-conflict",
+    mimeType: "application/json",
+    byteLength: originalPayload.byteLength,
+    sha256: digest(originalPayload),
+    chunkIndex: 0,
+    chunkCount: 2,
+    chunkByteLength: originalChunk.byteLength,
+  };
+  const storedEnvelope = {
+    ...conflictBase,
+    chunkSha256: digest(originalChunk),
+    dataBase64: originalChunk.toString("base64"),
+  };
+  await page.getByTestId("pptkit-transfer-toggle").click();
+  await page.getByTestId("pptkit-transfer-input").fill(JSON.stringify(storedEnvelope));
+  await page.getByTestId("pptkit-transfer-submit").click();
+  await page.waitForFunction(() => globalThis.__pptkitPreviewBridge.getState().transfers
+    .some((item) => item.transferId === "batch-conflict" && item.received.includes(0)));
+
+  const siblingSession = fixture();
+  siblingSession.id = "batch-sibling";
+  siblingSession.deck.design.seed = siblingSession.id;
+  const siblingBytes = Buffer.from(JSON.stringify(siblingSession));
+  const siblingSha256 = digest(siblingBytes);
+  const siblingTransferId = digest(Buffer.from(["session", siblingSession.id, "", siblingSha256].join("\0")));
+  const siblingEnvelope = {
+    protocol,
+    transferId: siblingTransferId,
+    kind: "session",
+    payloadId: siblingSession.id,
+    mimeType: "application/json",
+    byteLength: siblingBytes.byteLength,
+    sha256: siblingSha256,
+    chunkIndex: 0,
+    chunkCount: 1,
+    chunkByteLength: siblingBytes.byteLength,
+    chunkSha256: siblingSha256,
+    dataBase64: siblingBytes.toString("base64"),
+  };
+  const conflictingEnvelope = {
+    ...conflictBase,
+    chunkSha256: digest(conflictingChunk),
+    dataBase64: conflictingChunk.toString("base64"),
+  };
+  await page.getByTestId("pptkit-transfer-input").fill(JSON.stringify({
+    protocol,
+    mode: "batch",
+    chunks: [conflictingEnvelope, siblingEnvelope],
+  }));
+  await page.getByTestId("pptkit-transfer-submit").click();
+  await page.waitForFunction(() => document.querySelector("#transfer-error")?.textContent
+    ?.includes("conflicts with the previously stored chunk"));
+
+  assert.deepEqual(await storageCounts(page), { sessions: 0, assets: 0, transfers: 0, chunks: 0 });
+  assert.equal((await domBridge(page)).state.transfers.some((item) =>
+    item.transferId === siblingTransferId && item.status === "completed"), false);
+
+  await page.getByTestId("pptkit-transfer-input").fill(JSON.stringify(siblingEnvelope));
+  await page.getByTestId("pptkit-transfer-submit").click();
+  await page.waitForFunction((id) => globalThis.__pptkitPreviewBridge.getState().transfers
+    .some((item) => item.transferId === id && item.status === "completed"), siblingTransferId);
+  assert.equal((await domBridge(page)).state.preview.sessionId, siblingSession.id);
+});
+
 test("reports invalid session content separately and leaves no transfer data", async (t) => {
   const { server, url } = await serve();
   t.after(() => server.close());
@@ -436,8 +650,6 @@ test("transfers assets larger than 5 MB and more than 20 MB in total", async (t)
   t.after(() => server.close());
   const browser = await chromium.launch({ headless: true });
   t.after(() => browser.close());
-  const page = await browser.newPage();
-  await page.goto(url);
 
   const payloads = Array.from({ length: 4 }, (_, index) => largeSvg(5 * 1024 * 1024 + 256 * 1024, `Asset ${index + 1}`));
   const assets = payloads.map((bytes, index) => ({
@@ -449,21 +661,18 @@ test("transfers assets larger than 5 MB and more than 20 MB in total", async (t)
     width: 1200,
     height: 675,
   }));
-  await sendSession(page, fixture(1, assets, assets));
-  assert.equal(await page.getByTestId("pptkit-transfer-toggle").isVisible(), true);
-  assert.equal(await page.getByRole("button", { name: "Generate & download PPTX" }).isEnabled(), false);
-  const partial = await sendPayload(page, { bytes: payloads[0], kind: "asset", payloadId: assets[0].id, sessionId: "browser-review", mimeType: assets[0].mimeType, indexes: [0, 1], expectComplete: false });
-  assert.equal(await page.locator("#transfer-progress").isVisible(), true);
-  assert.match(await page.locator("#transfer-progress").innerText(), /Asset large-1 · 2 of \d+ parts · Receiving/);
-  await page.reload();
-  await page.waitForFunction((id) => globalThis.__pptkitPreviewBridge.getState().transfers.some((item) => item.transferId === id && item.received.includes(1)), partial.transferId);
-  await sendPayload(page, { bytes: payloads[0], kind: "asset", payloadId: assets[0].id, sessionId: "browser-review", mimeType: assets[0].mimeType, indexes: Array.from({ length: partial.chunkCount - 2 }, (_, index) => index + 2) });
-  for (let index = 1; index < assets.length; index += 1) {
-    await sendPayload(page, { bytes: payloads[index], kind: "asset", payloadId: assets[index].id, sessionId: "browser-review", mimeType: assets[index].mimeType });
+  const runs = [];
+  for (let iteration = 0; iteration < 5; iteration += 1) {
+    runs.push(await measureLargeTransferRun(browser, url, payloads, assets));
   }
-  await page.waitForFunction(() => document.querySelectorAll("#thumbnails button").length === 7);
-  assert.equal(await page.getByRole("button", { name: "Generate & download PPTX" }).isEnabled(), true);
-  assert.equal(await page.evaluate(() => globalThis.__pptkitPreviewBridge.protocol), protocol);
+  const readyMilliseconds = median(runs.map((run) => run.readyMilliseconds));
+  const submissionCount = Math.max(...runs.map((run) => run.submissionCount));
+  const peakHeapBytes = Math.max(...runs.map((run) => run.heapBytes));
+  const legacySubmissionCount = assets.reduce((sum, asset) => sum + Math.ceil(asset.byteLength / chunkBytes), 0);
+  assert.ok(submissionCount <= legacySubmissionCount * 0.3, `Expected at least 70% fewer submissions, got ${submissionCount} instead of ${legacySubmissionCount}.`);
+  assert.ok(readyMilliseconds <= 4051, `Expected median submit-to-ready within 4051ms, got ${readyMilliseconds.toFixed(1)}ms.`);
+  assert.ok(peakHeapBytes <= 256 * 1024 * 1024, `Expected browser heap to stay within 256 MiB, got ${(peakHeapBytes / 1024 / 1024).toFixed(1)} MiB.`);
+  t.diagnostic(`20MB submit-to-ready runs: ${runs.map((run) => run.readyMilliseconds.toFixed(1)).join(", ")}ms; median: ${readyMilliseconds.toFixed(1)}ms; submissions: ${submissionCount}/${legacySubmissionCount}; heap: ${(peakHeapBytes / 1024 / 1024).toFixed(1)} MiB`);
 });
 
 test("rejects inconsistent chunks and never reuses stale asset bytes across revisions", async (t) => {
@@ -516,9 +725,15 @@ test("rejects inconsistent chunks and never reuses stale asset bytes across revi
   const replacement = largeSvg(2048, "Replacement");
   const replacementAsset = { ...firstAsset, sha256: digest(replacement) };
   await sendSession(page, fixture(2, [replacementAsset], [replacementAsset]));
+  await page.waitForFunction(() => {
+    const preview = globalThis.__pptkitPreviewBridge.getState().preview;
+    return preview.revision === 2 && preview.status === "waiting";
+  });
+  assert.deepEqual((await domBridge(page)).state.preview.changedSlideIds, ["process"]);
   assert.equal(await page.getByRole("button", { name: "Generate & download PPTX" }).isEnabled(), false);
   await sendPayload(page, { bytes: replacement, kind: "asset", payloadId: replacementAsset.id, sessionId: "browser-review", mimeType: replacementAsset.mimeType });
   assert.equal(await page.getByRole("button", { name: "Generate & download PPTX" }).isEnabled(), true);
+  assert.deepEqual((await domBridge(page)).state.preview.changedSlideIds, ["process"]);
 });
 
 test("isolates SVG definition IDs between hidden thumbnails and the stage", async (t) => {

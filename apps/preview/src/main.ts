@@ -19,15 +19,16 @@ import {
   clearAllPreviewData,
   deleteSessionData,
   listTransfers,
-  loadAssetBlob,
+  loadAssetBlobs,
   loadSession,
   pruneExpiredStorage,
   type StoredTransfer,
 } from "./storage.js";
 import {
   MAX_TRANSFER_CHUNK_BYTES,
+  MAX_TRANSFER_BATCH_CHUNKS,
   PPTKIT_TRANSFER_PROTOCOL,
-  receiveTransferChunk,
+  receiveTransferBatch,
   SessionValidationError,
   TransferReceiveError,
   type TransferProgress,
@@ -83,9 +84,22 @@ let objectUrls: string[] = [];
 let persisted = true;
 let transfers: TransferProgress[] = [];
 let missingAssetCount = 0;
+let missingAssetIds: string[] = [];
 let lastTransferError: string | undefined;
 let routeGeneration = 0;
 let renderGeneration = 0;
+let renderToken = 0;
+let retainedSlideId: string | undefined;
+let changedSlideIds: string[] = [];
+let previewStatus: "waiting" | "rendering" | "ready" | "ready-with-warnings" | "failed" = "waiting";
+let cachedAssets: {
+  sessionId: string;
+  entries: Map<string, { signature: string; blob: Blob }>;
+} | undefined;
+
+function assetSignature(asset: DeckSession["assets"][number]) {
+  return `${asset.mimeType}:${asset.byteLength}:${asset.sha256.toLowerCase()}`;
+}
 
 function routeSessionId() {
   try { return decodeURIComponent(location.hash.slice(1)); }
@@ -135,9 +149,13 @@ function closeTransientSurfaces(except?: "transfer" | "findings") {
 }
 
 function bridgeState() {
+  const blockingFindings = findings.filter((item) => item.severity === "error").length;
+  const warningFindings = findings.length - blockingFindings;
   return {
     protocol: PPTKIT_TRANSFER_PROTOCOL,
     maxChunkBytes: MAX_TRANSFER_CHUNK_BYTES,
+    submissionModes: ["single", "batch"],
+    maxBatchChunks: MAX_TRANSFER_BATCH_CHUNKS,
     apis: {
       Blob: typeof Blob === "function",
       URL: typeof URL === "function",
@@ -151,13 +169,38 @@ function bridgeState() {
     state: {
       sessionId: session?.id,
       transfers: transfers.map((item) => ({ ...item, received: [...item.received], missing: [...item.missing] })),
+      preview: {
+        sessionId: session?.id,
+        revision: session?.revision,
+        status: previewStatus,
+        persisted,
+        slideCount: session?.deck.slides.length ?? 0,
+        svgCount: preview?.slides.length ?? 0,
+        missingAssetIds: [...missingAssetIds],
+        changedSlideIds: [...changedSlideIds],
+        renderGeneration,
+        findings,
+        qa: {
+          blockingFindings,
+          warningFindings,
+          layoutDecisionCount: layoutDecisions.length,
+          visualAuditIssueCount: visualAudit?.issues.length ?? 0,
+          visualAnchorSlideIds: visualAudit?.visualAnchorSlideIds ?? [],
+          maximumQuietRun: visualAudit?.maximumQuietRun ?? 0,
+        },
+      },
       ...(lastTransferError ? { lastError: lastTransferError } : {}),
     },
   };
 }
 
 function renderBridgeState() {
-  previewBridge.textContent = JSON.stringify(bridgeState());
+  const bridge = bridgeState();
+  const previewState = bridge.state.preview;
+  previewBridge.textContent = JSON.stringify(bridge);
+  previewBridge.dataset.previewSessionId = previewState.sessionId ?? "";
+  previewBridge.dataset.previewRevision = previewState.revision === undefined ? "" : String(previewState.revision);
+  previewBridge.dataset.previewStatus = previewState.status;
 }
 
 function updateTransferSurface() {
@@ -191,17 +234,75 @@ function revokeObjectUrls() {
   objectUrls = [];
 }
 
-async function createAssetResolver(activeSession: DeckSession) {
+function createAssetResolverFromBlobs(activeSession: DeckSession, blobs: Array<Blob | undefined>) {
   const resolved = new Map<string, { source: { type: "url"; value: string }; mimeType: string; dedupeKey: string }>();
   const urls: string[] = [];
-  for (const asset of activeSession.assets) {
-    const blob = await loadAssetBlob(activeSession.id, asset).catch(() => undefined);
+  for (const [index, asset] of activeSession.assets.entries()) {
+    const blob = blobs[index];
     if (!blob) continue;
     const url = URL.createObjectURL(blob);
     urls.push(url);
     resolved.set(asset.id, { source: { type: "url", value: url }, mimeType: asset.mimeType, dedupeKey: asset.id });
   }
   return { resolveAsset: (assetId: string) => resolved.get(assetId), urls };
+}
+
+async function loadAssetBlobsForSession(activeSession: DeckSession) {
+  const previous = cachedAssets?.sessionId === activeSession.id ? cachedAssets.entries : new Map();
+  const blobs = activeSession.assets.map((asset) => {
+    const cached = previous.get(asset.id);
+    return cached?.signature === assetSignature(asset) ? cached.blob : undefined;
+  });
+  const missing = activeSession.assets.filter((_, index) => !blobs[index]);
+  if (missing.length > 0) {
+    const loaded = await loadAssetBlobs(activeSession.id, missing).catch(() => missing.map(() => undefined));
+    let loadedIndex = 0;
+    for (const [index, blob] of blobs.entries()) {
+      if (blob === undefined) {
+        blobs[index] = loaded[loadedIndex];
+        loadedIndex += 1;
+      }
+    }
+  }
+  cachedAssets = {
+    sessionId: activeSession.id,
+    entries: new Map(activeSession.assets.flatMap((asset, index) => {
+      const blob = blobs[index];
+      return blob ? [[asset.id, { signature: assetSignature(asset), blob }] as const] : [];
+    })),
+  };
+  return {
+    blobs,
+    missingAssetIds: activeSession.assets.filter((_, index) => !blobs[index]).map((asset) => asset.id),
+  };
+}
+
+async function findMissingAssetIds(activeSession: DeckSession) {
+  return (await loadAssetBlobsForSession(activeSession)).missingAssetIds;
+}
+
+function waitForSessionAssets(activeSession: DeckSession, changed: string[] = []) {
+  retainedSlideId = preview?.slides[currentIndex]?.slideId ?? retainedSlideId;
+  changedSlideIds = [...changed];
+  renderToken += 1;
+  revokeObjectUrls();
+  presentation = undefined;
+  layoutDecisions = [];
+  visualAudit = undefined;
+  preview = undefined;
+  findings = [];
+  currentDiagnostics = [];
+  currentExportStatus = "not-run";
+  previewStatus = "waiting";
+  downloadButton.disabled = true;
+  renderThumbnails();
+  showCurrentSlide();
+  showFindings(findings);
+  deckTitle.textContent = activeSession.deck.brief.title;
+  deckMeta.textContent = `${activeSession.deck.design.theme.id} · ${activeSession.deck.slides.length} slides · revision ${activeSession.revision}`;
+  setStatus(`Saved locally · Waiting for ${missingAssetCount} required asset${missingAssetCount === 1 ? "" : "s"}.`, "busy");
+  renderBridgeState();
+  updateTransferSurface();
 }
 
 function changedSlides(previous: DeckSession | undefined, next: DeckSession) {
@@ -212,24 +313,35 @@ function changedSlides(previous: DeckSession | undefined, next: DeckSession) {
 
 function mountSvg(container: HTMLElement, svg: string, namespace: string) {
   container.insertAdjacentHTML("beforeend", svg);
+  const root = container.lastElementChild;
+  if (!(root instanceof SVGElement)) return;
   const idMap = new Map<string, string>();
-  for (const element of container.querySelectorAll<HTMLElement>("[id]")) {
+  if (root.id) {
+    const scopedId = `${namespace}-${root.id}`;
+    idMap.set(root.id, scopedId);
+    root.id = scopedId;
+  }
+  for (const element of root.querySelectorAll<HTMLElement>("[id]")) {
     const scopedId = `${namespace}-${element.id}`;
     idMap.set(element.id, scopedId);
     element.id = scopedId;
   }
 
-  for (const element of container.querySelectorAll("*")) {
+  for (const element of [root, ...root.querySelectorAll("*")]) {
     for (const attribute of [...element.attributes]) {
-      let value = attribute.value;
-      for (const [id, scopedId] of idMap) {
-        value = value.replaceAll(`url(#${id})`, `url(#${scopedId})`);
-        if (value === `#${id}`) value = `#${scopedId}`;
-      }
+      const original = attribute.value;
+      let value = original;
       if (attribute.name === "aria-labelledby" || attribute.name === "aria-describedby") {
         value = value.split(/\s+/).map((id) => idMap.get(id) ?? id).join(" ");
+      } else if (value.includes("url(#")) {
+        value = value.replace(/url\(#([^)]+)\)/g, (match, id: string) => {
+          const scopedId = idMap.get(id);
+          return scopedId ? `url(#${scopedId})` : match;
+        });
+      } else if (value.startsWith("#") && idMap.has(value.slice(1))) {
+        value = `#${idMap.get(value.slice(1))}`;
       }
-      if (value !== attribute.value) element.setAttribute(attribute.name, value);
+      if (value !== original) element.setAttribute(attribute.name, value);
     }
   }
 }
@@ -371,13 +483,19 @@ async function refreshStoredTransfers() {
 }
 
 async function renderSession(nextSession: DeckSession, changed: string[] = []) {
-  const generation = ++renderGeneration;
-  const selectedSlideId = preview?.slides[currentIndex]?.slideId;
-  const { resolveAsset, urls } = await createAssetResolver(nextSession);
+  const token = ++renderToken;
+  renderGeneration += 1;
+  const selectedSlideId = retainedSlideId ?? preview?.slides[currentIndex]?.slideId;
+  changedSlideIds = [...changed];
+  previewStatus = "rendering";
+  renderBridgeState();
+  const { blobs } = await loadAssetBlobsForSession(nextSession);
+  const { resolveAsset, urls } = createAssetResolverFromBlobs(nextSession, blobs);
+  const availableAssets = new Set(nextSession.assets.filter((asset) => resolveAsset(asset.id)).map((asset) => asset.id));
+  missingAssetCount = 0;
+  missingAssetIds = [];
   const authored = authorDeck(nextSession.deck, resolveAsset);
   const nextPresentation = authored.presentation;
-  const availableAssets = new Set(nextSession.assets.filter((asset) => resolveAsset(asset.id)).map((asset) => asset.id));
-  const nextMissingAssetCount = nextSession.assets.length - availableAssets.size;
   const specIssues = validateDeckSpec(nextSession.deck, availableAssets);
   const diagnostics = validatePresentation(nextPresentation);
   const nextDiagnostics = diagnostics.map((diagnostic) => ({ severity: diagnostic.severity, code: diagnostic.code, message: diagnostic.message, path: diagnostic.path }));
@@ -388,8 +506,9 @@ async function renderSession(nextSession: DeckSession, changed: string[] = []) {
     ...(diagnostic.slideId ? { slideId: diagnostic.slideId } : {}),
     ...(diagnostic.elementId ? { elementId: diagnostic.elementId } : {}),
   }));
-  const structural = diagnostics.some((diagnostic) => diagnostic.severity === "error") ? [] : inspectStructure(normalizePresentation(nextPresentation));
-  const nextVisualAudit = auditVisualRhythm(nextSession.deck, normalizePresentation(nextPresentation), authored.layoutDecisions);
+  const normalized = normalizePresentation(nextPresentation);
+  const structural = diagnostics.some((diagnostic) => diagnostic.severity === "error") ? [] : inspectStructure(normalized);
+  const nextVisualAudit = auditVisualRhythm(nextSession.deck, normalized, authored.layoutDecisions);
   const nextPreview = await renderPresentationToSvg(nextPresentation);
   const nextFindings = [
     ...specIssues,
@@ -398,7 +517,7 @@ async function renderSession(nextSession: DeckSession, changed: string[] = []) {
     ...nextVisualAudit.issues,
     ...nextPreview.warnings.map((warning) => ({ severity: "warning" as const, code: warning.code, message: warning.message, ...(warning.slideId ? { slideId: warning.slideId } : {}), ...(warning.elementId ? { elementId: warning.elementId } : {}) })),
   ];
-  if (generation !== renderGeneration) {
+  if (token !== renderToken) {
     for (const url of urls) URL.revokeObjectURL(url);
     return;
   }
@@ -407,14 +526,19 @@ async function renderSession(nextSession: DeckSession, changed: string[] = []) {
   presentation = nextPresentation;
   layoutDecisions = authored.layoutDecisions;
   visualAudit = nextVisualAudit;
-  missingAssetCount = nextMissingAssetCount;
   currentDiagnostics = nextDiagnostics;
   currentExportStatus = "not-run";
   preview = nextPreview;
   findings = nextFindings;
+  previewStatus = nextFindings.some((item) => item.severity === "error")
+    ? "failed"
+    : nextFindings.length > 0
+      ? "ready-with-warnings"
+      : "ready";
   renderThumbnails();
   const retainedIndex = selectedSlideId ? preview.slides.findIndex((slide) => slide.slideId === selectedSlideId) : -1;
   currentIndex = retainedIndex >= 0 ? retainedIndex : 0;
+  retainedSlideId = undefined;
   showCurrentSlide();
   showFindings(findings);
   deckTitle.textContent = nextSession.deck.brief.title;
@@ -436,8 +560,10 @@ async function renderSession(nextSession: DeckSession, changed: string[] = []) {
 }
 
 function resetPreviewState(message = "Ready") {
-  renderGeneration += 1;
+  renderToken += 1;
+  retainedSlideId = undefined;
   revokeObjectUrls();
+  cachedAssets = undefined;
   session = undefined;
   presentation = undefined;
   layoutDecisions = [];
@@ -449,6 +575,9 @@ function resetPreviewState(message = "Ready") {
   currentExportStatus = "not-run";
   transfers = [];
   missingAssetCount = 0;
+  missingAssetIds = [];
+  changedSlideIds = [];
+  previewStatus = "waiting";
   lastTransferError = undefined;
   transferInput.value = "";
   transferError.textContent = "";
@@ -481,7 +610,11 @@ async function loadCurrentRoute() {
     return;
   }
   session = stored;
-  await renderSession(stored);
+  missingAssetIds = await findMissingAssetIds(stored);
+  if (generation !== routeGeneration) return;
+  missingAssetCount = missingAssetIds.length;
+  if (missingAssetCount === 0) await renderSession(stored);
+  else waitForSessionAssets(stored);
 }
 
 function download(bytes: Uint8Array, mimeType: string, filename: string) {
@@ -556,9 +689,15 @@ filmstrip.addEventListener("pointerleave", () => delete filmstrip.dataset.suppre
 transferButton.addEventListener("click", async () => {
   transferError.textContent = "";
   try {
-    const candidate = JSON.parse(transferInput.value) as { transferId?: unknown };
-    if (typeof candidate.transferId === "string") {
-      const retained = transfers.filter((item) => item.transferId !== candidate.transferId || item.status !== "failed");
+    const candidate = JSON.parse(transferInput.value) as { transferId?: unknown; chunks?: Array<{ transferId?: unknown }> };
+    const transferIds = [
+      ...(typeof candidate.transferId === "string" ? [candidate.transferId] : []),
+      ...(Array.isArray(candidate.chunks)
+        ? candidate.chunks.flatMap((chunk) => typeof chunk.transferId === "string" ? [chunk.transferId] : [])
+        : []),
+    ];
+    if (transferIds.length > 0) {
+      const retained = transfers.filter((item) => !transferIds.includes(item.transferId) || item.status !== "failed");
       if (retained.length !== transfers.length) {
         transfers = retained;
         renderTransferProgress();
@@ -573,21 +712,35 @@ transferButton.addEventListener("click", async () => {
   try {
     lastTransferError = undefined;
     renderBridgeState();
-    const result = await receiveTransferChunk(transferInput.value, session);
-    if (result.kind === "session") {
-      if (session && session.id !== result.payloadId) resetPreviewState("Receiving a new presentation…");
-      replaceRouteSessionId(result.payloadId);
-    }
-    recordTransfer(result);
-    transferInput.value = "";
-    if (result.session) {
-      const changed = changedSlides(session, result.session);
-      session = result.session;
+    const results = await receiveTransferBatch(transferInput.value, session);
+    const nextSessionResult = results.find((result) => result.session);
+    const changed = nextSessionResult?.session ? changedSlides(session, nextSessionResult.session) : [];
+    if (nextSessionResult?.session) {
+      if (session && session.id !== nextSessionResult.session.id) resetPreviewState("Receiving a new presentation…");
+      session = nextSessionResult.session;
+      previewStatus = "waiting";
       replaceRouteSessionId(session.id);
-      await renderSession(session, changed);
-    } else if (result.completedAssetId && session) {
-      await renderSession(session);
-      setStatus(`Asset ${result.completedAssetId} completed and the preview was refreshed.`, "success");
+    }
+    for (const result of results) recordTransfer(result);
+    transferInput.value = "";
+    const completedAssetIds = results.flatMap((result) => result.completedAssetId ? [result.completedAssetId] : []);
+    if (session && nextSessionResult?.session) {
+      missingAssetIds = await findMissingAssetIds(session);
+      missingAssetCount = missingAssetIds.length;
+      if (missingAssetCount === 0) await renderSession(session, changed);
+      else waitForSessionAssets(session, changed);
+    } else if (session && completedAssetIds.length > 0) {
+      const completed = new Set(completedAssetIds);
+      missingAssetIds = missingAssetIds.filter((assetId) => !completed.has(assetId));
+      missingAssetCount = missingAssetIds.length;
+      if (missingAssetCount === 0) {
+        await renderSession(session, changedSlideIds);
+        setStatus(`${completedAssetIds.length} asset${completedAssetIds.length === 1 ? "" : "s"} completed and the preview was refreshed.`, "success");
+      } else {
+        setStatus(`Saved locally · Waiting for ${missingAssetCount} required asset${missingAssetCount === 1 ? "" : "s"}.`, "busy");
+        renderBridgeState();
+        updateTransferSurface();
+      }
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

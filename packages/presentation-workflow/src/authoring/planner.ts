@@ -37,6 +37,30 @@ function candidateIndex(seed: string, slide: SlidePlan, variation: DesignVariati
   return hash(`${seed}:${slide.id}:${slide.role}`) % candidateCount;
 }
 
+function layoutRepairHint(slide: SlidePlan): string {
+  if (slide.role === "statement" && slide.composition === "split" && !slide.items?.length) {
+    return " Statement + split requires message and at least one items entry. Add supporting items, or omit composition so the planner can choose a compatible layout.";
+  }
+  if (slide.role === "agenda" && slide.composition === "grid" && (slide.items?.length ?? 0) < 2) {
+    return " Agenda + grid requires at least two items. Add items, or omit composition so the planner can choose a compatible layout.";
+  }
+  if (slide.role === "process" && slide.composition === "divided" && (slide.steps?.length ?? 0) < 2) {
+    return " Process + divided requires at least two steps. Add steps, or omit composition so the planner can choose a compatible layout.";
+  }
+  if (slide.role === "table" && slide.composition === "ledger" && slide.table?.headers.length !== 2) {
+    return " Table + ledger requires exactly two headers. Use two columns, choose grid, or omit composition so the planner can choose a compatible layout.";
+  }
+  if (slide.role === "table" && slide.composition === "split" && !slide.chart) {
+    return " Table + split requires chart data. Add chart data, choose grid/ledger, or omit composition so the planner can choose a compatible layout.";
+  }
+  if (slide.visualIntent === "image-led" && !slide.image) {
+    return " image-led requires a declared image asset. Add image, or omit visualIntent so the planner can choose a compatible treatment.";
+  }
+  return slide.composition || slide.visualIntent
+    ? " Add the content required by that explicit intent, or omit composition/visualIntent so the planner can choose a compatible layout."
+    : "";
+}
+
 export function planDeckLayout(spec: DeckSpec): LayoutDecision[] {
   const seed = spec.design.seed;
   const variation = spec.design.variation;
@@ -49,7 +73,7 @@ export function planDeckLayout(spec: DeckSpec): LayoutDecision[] {
     if (!candidates.length) {
       const intent = slide.composition ? ` composition ${slide.composition}` : "";
       const visualIntent = slide.visualIntent ? ` visual intent ${slide.visualIntent}` : "";
-      throw new Error(`No layout recipe supports ${slide.role} slide ${slide.id} with${intent}${visualIntent} density ${density}.`);
+      throw new Error(`No layout recipe supports ${slide.role} slide ${slide.id} with${intent}${visualIntent} density ${density}.${layoutRepairHint(slide)}`);
     }
 
     const recent = decisions.slice(-2).map((decision) => decision.composition);
@@ -88,7 +112,7 @@ export function validateLayoutPlan(spec: DeckSpec): StructuralIssue[] {
       issues.push({
         severity: "error",
         code: "incompatible-composition",
-        message: `${slide.role} slide cannot use ${[slide.composition, slide.visualIntent].filter(Boolean).join(" / ")} with its current content and ${density} density.`,
+        message: `${slide.role} slide cannot use ${[slide.composition, slide.visualIntent].filter(Boolean).join(" / ")} with its current content and ${density} density.${layoutRepairHint(slide)}`,
         slideId: slide.id,
       });
     } else if (!candidates.length) {

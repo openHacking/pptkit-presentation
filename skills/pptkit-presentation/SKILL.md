@@ -7,20 +7,35 @@ description: Create polished, structured, editable PowerPoint presentations with
 
 Create a structured deck session, preview it in the browser, and generate an editable `.pptx` only after the user explicitly chooses export. Prefer the browser workflow; keep the Node project workflow as a compatibility and strict-rendering fallback.
 
+## Fast path and reference routing
+
+Read `SKILL.md` once, then route references by phase. Do not reopen a reference, browser `documentation()`, resolved preview URL, or runtime capability already read successfully in the same task or revision.
+
+| Phase | Read once | Continue when |
+| --- | --- | --- |
+| Intake and outline | [workflow.md](references/workflow.md) | Missing decisions are grouped and the outline gate is resolved. |
+| Runtime selection | [runtime-routing.md](references/runtime-routing.md) | Browser or Node is recorded from concrete capability evidence. |
+| Browser execution | [browser-workflow.md](references/browser-workflow.md) | The selected browser is bound and the bridge capability is cached. |
+| Node execution | [node-workflow.md](references/node-workflow.md) | Browser routing failed concretely or strict local rendering is required. |
+| Authoring | [design-system.md](references/design-system.md) | The approved brief and source evidence are ready. |
+| QA and delivery | [quality.md](references/quality.md) | Full-deck checks and the adversarial review are complete. |
+| Compatibility | [compatibility.md](references/compatibility.md) | Only when changing dependencies, URLs, protocols, storage, or publishing. |
+
 ## Run the workflow
 
 1. Inspect the request and every supplied source before asking questions. Extract its text, tables, charts, diagrams, flow, and information architecture when present. For an existing PPTX, use structured per-slide evidence; a rendered slide is review evidence, never default slide content. Read [workflow.md](references/workflow.md).
-2. Ask only for decisions that cannot be inferred. Ask them one at a time in this order: purpose and audience, theme, then page count and asset strategy. Use the host's native question/form tool (in Codex, `request_user_input`) whenever available.
-3. Show the three style previews in `assets/previews/` unless the user already chose a theme. Recommend exactly one theme.
+2. Ask only for decisions that cannot be inferred. Combine the missing purpose/audience, theme, and scope/material decisions into one native form, grouped by section and with recommended defaults. Use the host's native question/form tool (in Codex, `request_user_input`) whenever available.
+3. Show the three style previews in `assets/previews/` in the same intake message unless the user already chose a theme. Recommend exactly one theme.
 4. Build the normalized brief and slide-by-slide outline. Record each slide's role, composition intent, density, visual intent, visual evidence, and source IDs. Persist `composition`, `density`, and `visualIntent` only when they express a deliberate, recipe-compatible constraint; otherwise omit them and let the planner choose. They are runtime inputs, not commentary. For decks of eight or more slides, plan at least two content-appropriate visual anchors unless the user explicitly requests a uniformly restrained treatment. Keep the detailed outline separate from the short decision summary.
 5. Require exactly one confirmation outcome: **Approve and generate**, **Change the plan**, or **Cancel**. Do not create artifacts, open a preview, install dependencies, or generate PPTX bytes before approval. Skip this gate only for a complete specification that explicitly requests generation without confirmation.
 6. After approval, choose the runtime:
    - Read [runtime-routing.md](references/runtime-routing.md) and complete its state machine. Runtime selection is a recorded decision, not an inference from which tools happen to be visible.
-   - In Codex, discover the Browser instructions and the `node_repl js` tool even when browser controls are not directly visible. Initialize the Browser runtime, explicitly try the `iab` browser first, and, if that real attempt fails, try external Chrome through `agent.browsers.get("extension")` when the Chrome skill is available. Read each selected browser's complete `documentation()` before controlling it. Do not infer unavailability from the initial tool list or silently choose Node.
-   - Use [browser-workflow.md](references/browser-workflow.md) when either Codex browser can open the official or configured HTTPS preview URL, supports `pptkit-transfer`, and the user did not require unattended local output or Office/LibreOffice rendering. Chrome uses the same DOM bridge, transfer protocol, IndexedDB storage, and export flow as the in-app browser.
+   - In Codex, discover the Browser instructions and the `node_repl js` tool even when browser controls are not directly visible. Initialize the Browser runtime, explicitly try the `iab` browser first, and, if that real attempt fails, try external Chrome through `agent.browsers.get("extension")` when the Chrome skill is available. Read each selected browser's complete `documentation()` before controlling it, then reuse that binding and documentation for revisions in the same task. Do not infer unavailability from the initial tool list or silently choose Node.
+   - Use [browser-workflow.md](references/browser-workflow.md) when either Codex browser can open the official or configured preview URL, supports `pptkit-transfer`, and the user did not require unattended local output or Office/LibreOffice rendering. Require HTTPS except for an explicitly supplied loopback development URL. Chrome uses the same DOM bridge, transfer protocol, IndexedDB storage, and export flow as the in-app browser.
+   - After authoring an asset-free session, use `transferPptkitSession()` as the default one-call path from validated `deck-session.json` to a ready SVG preview. Do not manually repeat its preflight, transfer-surface, submission, or polling steps.
    - Use [node-workflow.md](references/node-workflow.md) otherwise. In Codex, browser-unavailable fallback evidence must include separate concrete `iab` and Chrome results through the initializer's `--iab-evidence` and `--chrome-evidence` arguments; a free-form summary or initially hidden control is insufficient. Do not pause for a browser-choice question. State the fallback reason, pass the required routing evidence to the guarded initializer, and, after initialization, mention that enabling the in-app Browser next time provides a better PPT review experience. If the initializer rejects the evidence, stop; do not bypass or modify the guard.
-7. Read [design-system.md](references/design-system.md) before authoring. Use `deck-session.json` as the browser source of truth and stable slide IDs across revisions.
-8. Treat validation errors, missing required assets, out-of-bounds elements, risky overlaps, malformed packages, and unexpected exporter warnings as failures. Read [quality.md](references/quality.md).
+7. Read each routed reference at most once per task: [design-system.md](references/design-system.md) before authoring and [quality.md](references/quality.md) before delivery. Use `deck-session.json` as the browser source of truth and stable slide IDs across revisions.
+8. Treat validation errors, missing required assets, out-of-bounds elements, risky overlaps, malformed packages, and unexpected exporter warnings as failures.
 9. Deliver the browser preview first and do not download automatically. After preview, export only when the user clicks **Generate & download PPTX** or explicitly asks the agent to export/download it. Mention every remaining warning and the SVG-versus-Office fidelity boundary.
 
 ## Keep these contracts
@@ -45,6 +60,7 @@ Create a structured deck session, preview it in the browser, and generate an edi
 - Split content instead of shrinking below the theme minimum. Treat 18–22 pt as ordinary body copy, 15–18 pt as detail/table copy, and 9–11 pt as metadata only.
 - Use theme-specific compositions and vary narrative rhythm. Do not solve empty space with filler, decorative numbering, repeated rounded cards, or arbitrary icons.
 - Treat `visualIntent` as a commitment about the first visual focus: `content-led`, `image-led`, `color-led`, `data-led`, or `type-led`. Do not label a slide image-led when imagery remains a thumbnail.
+- Treat optional layout intents as constraints. Unless the outline deliberately requires a specific compatible treatment, omit `composition`, `density`, and `visualIntent` and let the planner select from role, content, rhythm, theme, and seed.
 - Do not populate `visualIntent` on every slide by default. In particular, table recipes are `data-led`; agenda, comparison, and process recipes are `content-led`. If no compatible treatment is intentionally required, omit `visualIntent`.
 - Treat `incompatible-composition` as an authoring error. Review `layoutDecisions` in the build report; do not hide or manually rewrite an unexpected seeded choice after export.
 - Review `visualAudit` in the build report. Resolve weak image/color treatments, long low-intensity runs, and missing visual anchors instead of dismissing them as subjective styling.

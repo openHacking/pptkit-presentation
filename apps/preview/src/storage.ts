@@ -24,7 +24,7 @@ export interface StoredTransfer {
   error?: string;
 }
 
-interface StoredChunk {
+export interface StoredChunk {
   key: string;
   transferId: string;
   index: number;
@@ -42,10 +42,23 @@ interface StoredAsset {
   blob: Blob;
 }
 
+export class TransferChunkConflictError extends Error {
+  constructor(readonly transferId: string, readonly chunkIndex: number) {
+    super(`Transfer chunk ${chunkIndex} conflicts with the previously stored chunk.`);
+    this.name = "TransferChunkConflictError";
+  }
+}
+
+let databasePromise: Promise<IDBDatabase> | undefined;
+
 function openDatabase() {
-  return new Promise<IDBDatabase>((resolve, reject) => {
+  if (databasePromise) return databasePromise;
+  databasePromise = new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DATABASE, VERSION);
-    request.onerror = () => reject(request.error ?? new Error("IndexedDB could not be opened."));
+    request.onerror = () => {
+      databasePromise = undefined;
+      reject(request.error ?? new Error("IndexedDB could not be opened."));
+    };
     request.onupgradeneeded = () => {
       const database = request.result;
       if (!database.objectStoreNames.contains(SESSIONS)) database.createObjectStore(SESSIONS, { keyPath: "id" });
@@ -59,8 +72,15 @@ function openDatabase() {
         chunks.createIndex("transferId", "transferId");
       }
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      request.result.onversionchange = () => {
+        request.result.close();
+        databasePromise = undefined;
+      };
+      resolve(request.result);
+    };
   });
+  return databasePromise;
 }
 
 function complete(transaction: IDBTransaction) {
@@ -83,7 +103,6 @@ export async function saveSession(session: DeckSession) {
   const transaction = database.transaction(SESSIONS, "readwrite");
   transaction.objectStore(SESSIONS).put(session);
   await complete(transaction);
-  database.close();
 }
 
 export async function loadSession(id: string) {
@@ -91,21 +110,28 @@ export async function loadSession(id: string) {
   const transaction = database.transaction(SESSIONS, "readonly");
   const result = await requestValue(transaction.objectStore(SESSIONS).get(id), "Session could not be loaded.") as DeckSession | undefined;
   await complete(transaction);
-  database.close();
   return result;
 }
 
-export async function loadAssetBlob(sessionId: string, asset: DeckSession["assets"][number]) {
+export async function loadAssetBlobs(sessionId: string, assetsToLoad: DeckSession["assets"]) {
   const database = await openDatabase();
   const transaction = database.transaction(ASSETS, "readonly");
-  const result = await requestValue(transaction.objectStore(ASSETS).get(`${sessionId}:${asset.id}`), "Asset could not be loaded.") as StoredAsset | undefined;
+  const store = transaction.objectStore(ASSETS);
+  const results = await Promise.all(assetsToLoad.map((asset) =>
+    requestValue(store.get(`${sessionId}:${asset.id}`), "Asset could not be loaded.") as Promise<StoredAsset | undefined>));
   await complete(transaction);
-  database.close();
-  if (!result
-    || result.mimeType !== asset.mimeType
-    || result.byteLength !== asset.byteLength
-    || result.sha256.toLowerCase() !== asset.sha256.toLowerCase()) return undefined;
-  return result.blob;
+  return results.map((result, index) => {
+    const asset = assetsToLoad[index]!;
+    if (!result
+      || result.mimeType !== asset.mimeType
+      || result.byteLength !== asset.byteLength
+      || result.sha256.toLowerCase() !== asset.sha256.toLowerCase()) return undefined;
+    return result.blob;
+  });
+}
+
+export async function loadAssetBlob(sessionId: string, asset: DeckSession["assets"][number]) {
+  return (await loadAssetBlobs(sessionId, [asset]))[0];
 }
 
 export async function loadTransfer(transferId: string) {
@@ -113,8 +139,17 @@ export async function loadTransfer(transferId: string) {
   const transaction = database.transaction(TRANSFERS, "readonly");
   const result = await requestValue(transaction.objectStore(TRANSFERS).get(transferId), "Transfer could not be loaded.") as StoredTransfer | undefined;
   await complete(transaction);
-  database.close();
   return result;
+}
+
+export async function loadTransfers(transferIds: string[]) {
+  if (transferIds.length === 0) return [];
+  const database = await openDatabase();
+  const transaction = database.transaction(TRANSFERS, "readonly");
+  const results = await Promise.all(transferIds.map((transferId) =>
+    requestValue(transaction.objectStore(TRANSFERS).get(transferId), "Transfer could not be loaded.") as Promise<StoredTransfer | undefined>));
+  await complete(transaction);
+  return results;
 }
 
 export async function listTransfers(sessionId: string) {
@@ -122,45 +157,62 @@ export async function listTransfers(sessionId: string) {
   const transaction = database.transaction(TRANSFERS, "readonly");
   const result = await requestValue(transaction.objectStore(TRANSFERS).getAll(), "Transfers could not be listed.") as StoredTransfer[];
   await complete(transaction);
-  database.close();
   return result.filter((transfer) => transfer.kind === "session" ? transfer.payloadId === sessionId : transfer.sessionId === sessionId);
 }
 
 export async function saveTransferChunk(transfer: StoredTransfer, index: number, sha256: string, blob: Blob) {
+  await saveTransferChunks([{ transfer, index, sha256, blob }]);
+}
+
+export async function saveTransferChunks(items: Array<{ transfer: StoredTransfer; index: number; sha256: string; blob: Blob }>) {
+  if (items.length === 0) return;
   const database = await openDatabase();
   const transaction = database.transaction([TRANSFERS, CHUNKS], "readwrite");
   const chunks = transaction.objectStore(CHUNKS);
-  const key = `${transfer.transferId}:${index}`;
-  const existing = await requestValue(chunks.get(key), "Transfer chunk could not be loaded.") as StoredChunk | undefined;
-  if (existing && existing.sha256 !== sha256) {
-    transaction.abort();
-    database.close();
-    throw new Error(`Transfer chunk ${index} conflicts with the previously stored chunk.`);
+  const existingChunks = await Promise.all(items.map((item) => {
+    const key = `${item.transfer.transferId}:${item.index}`;
+    return requestValue(chunks.get(key), "Transfer chunk could not be loaded.") as Promise<StoredChunk | undefined>;
+  }));
+  for (const [itemIndex, item] of items.entries()) {
+    const key = `${item.transfer.transferId}:${item.index}`;
+    const existing = existingChunks[itemIndex];
+    if (existing && existing.sha256 !== item.sha256) {
+      transaction.abort();
+      throw new TransferChunkConflictError(item.transfer.transferId, item.index);
+    }
+    if (!existing) chunks.put({ key, transferId: item.transfer.transferId, index: item.index, sha256: item.sha256, blob: item.blob } satisfies StoredChunk);
+    transaction.objectStore(TRANSFERS).put({ ...item.transfer, lastActivityAt: new Date().toISOString() });
   }
-  if (!existing) chunks.put({ key, transferId: transfer.transferId, index, sha256, blob } satisfies StoredChunk);
-  transaction.objectStore(TRANSFERS).put({ ...transfer, lastActivityAt: new Date().toISOString() });
   await complete(transaction);
-  database.close();
 }
 
 export async function loadTransferChunks(transferId: string) {
+  return (await loadTransferChunkBatches([transferId]))[0] ?? [];
+}
+
+export async function loadTransferChunkBatches(transferIds: string[]) {
+  if (transferIds.length === 0) return [];
   const database = await openDatabase();
   const transaction = database.transaction(CHUNKS, "readonly");
   const index = transaction.objectStore(CHUNKS).index("transferId");
-  const result = await requestValue(index.getAll(transferId), "Transfer chunks could not be loaded.") as StoredChunk[];
+  const results = await Promise.all(transferIds.map((transferId) =>
+    requestValue(index.getAll(transferId), "Transfer chunks could not be loaded.") as Promise<StoredChunk[]>));
   await complete(transaction);
-  database.close();
-  return result.sort((left, right) => left.index - right.index);
+  return results.map((result) => result.sort((left, right) => left.index - right.index));
 }
 
-async function deleteTransferIn(transaction: IDBTransaction, transferId: string) {
+async function deleteTransferIn(transaction: IDBTransaction, transferId: string, chunkCount?: number) {
   transaction.objectStore(TRANSFERS).delete(transferId);
   const chunks = transaction.objectStore(CHUNKS);
+  if (chunkCount !== undefined) {
+    for (let index = 0; index < chunkCount; index += 1) chunks.delete(`${transferId}:${index}`);
+    return;
+  }
   const keys = await requestValue(chunks.index("transferId").getAllKeys(transferId), "Transfer chunk keys could not be loaded.");
   for (const key of keys) chunks.delete(key);
 }
 
-export async function completeSessionTransfer(transferId: string, session: DeckSession) {
+export async function completeSessionTransfer(transferId: string, session: DeckSession, chunkCount?: number) {
   const database = await openDatabase();
   const transaction = database.transaction([SESSIONS, ASSETS, TRANSFERS, CHUNKS], "readwrite");
   transaction.objectStore(SESSIONS).put(session);
@@ -173,18 +225,48 @@ export async function completeSessionTransfer(transferId: string, session: DeckS
       assets.delete(stored.key);
     }
   }
-  await deleteTransferIn(transaction, transferId);
+  await deleteTransferIn(transaction, transferId, chunkCount);
   await complete(transaction);
-  database.close();
 }
 
-export async function completeAssetTransfer(transferId: string, sessionId: string, assetId: string, mimeType: string, sha256: string, blob: Blob) {
+export async function completeAssetTransfer(transferId: string, sessionId: string, assetId: string, mimeType: string, sha256: string, blob: Blob, chunkCount?: number) {
+  await completeAssetTransfers([{
+    transferId,
+    sessionId,
+    assetId,
+    mimeType,
+    sha256,
+    blob,
+    ...(chunkCount === undefined ? {} : { chunkCount }),
+  }]);
+}
+
+export async function completeAssetTransfers(items: Array<{
+  transferId: string;
+  sessionId: string;
+  assetId: string;
+  mimeType: string;
+  sha256: string;
+  blob: Blob;
+  chunkCount?: number;
+}>) {
+  if (items.length === 0) return;
   const database = await openDatabase();
   const transaction = database.transaction([ASSETS, TRANSFERS, CHUNKS], "readwrite");
-  transaction.objectStore(ASSETS).put({ key: `${sessionId}:${assetId}`, sessionId, assetId, mimeType, byteLength: blob.size, sha256, blob } satisfies StoredAsset);
-  await deleteTransferIn(transaction, transferId);
+  const assets = transaction.objectStore(ASSETS);
+  for (const item of items) {
+    assets.put({
+      key: `${item.sessionId}:${item.assetId}`,
+      sessionId: item.sessionId,
+      assetId: item.assetId,
+      mimeType: item.mimeType,
+      byteLength: item.blob.size,
+      sha256: item.sha256,
+      blob: item.blob,
+    } satisfies StoredAsset);
+    await deleteTransferIn(transaction, item.transferId, item.chunkCount);
+  }
   await complete(transaction);
-  database.close();
 }
 
 export async function discardTransfer(transferId: string) {
@@ -192,7 +274,6 @@ export async function discardTransfer(transferId: string) {
   const transaction = database.transaction([TRANSFERS, CHUNKS], "readwrite");
   await deleteTransferIn(transaction, transferId);
   await complete(transaction);
-  database.close();
 }
 
 function transferBelongsToSession(transfer: StoredTransfer, sessionId: string) {
@@ -211,7 +292,6 @@ export async function deleteSessionData(sessionId: string) {
     if (transferBelongsToSession(transfer, sessionId)) await deleteTransferIn(transaction, transfer.transferId);
   }
   await complete(transaction);
-  database.close();
 }
 
 export async function clearAllPreviewData() {
@@ -222,7 +302,6 @@ export async function clearAllPreviewData() {
   transaction.objectStore(TRANSFERS).clear();
   transaction.objectStore(CHUNKS).clear();
   await complete(transaction);
-  database.close();
 }
 
 export async function pruneExpiredStorage(now = Date.now()) {
@@ -271,5 +350,4 @@ export async function pruneExpiredStorage(now = Date.now()) {
   }
 
   await complete(transaction);
-  database.close();
 }

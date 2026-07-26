@@ -70,6 +70,42 @@ Composition names are not a global compatibility list. Use this role map when an
 | `table` | `ledger` (exactly 2 headers), `grid`, `split` (chart data) | `data-led` |
 | `closing` | `hero`, `split`, `image-background`, `color-field` | recipe-defined |
 
+**Default authoring rule:** omit `composition`, `density`, and `visualIntent` unless the outline deliberately requires that exact treatment. An optional intent is a constraint, not a style suggestion. The planner already selects a deterministic compatible recipe from role, content shape, density, adjacent rhythm, theme, and seed.
+
+When an explicit composition is necessary, satisfy these content prerequisites before writing `deck-session.json`:
+
+| Role | Explicit composition | Required content shape |
+| --- | --- | --- |
+| `cover` | `hero`, `split` | title; subtitle optional |
+| `cover` | `image-background` | declared `image`; airy or balanced density |
+| `cover` | `color-field` | explicit color-led treatment; airy or balanced density |
+| `agenda` | `ledger` | at least 1 `items` entry |
+| `agenda` | `grid` | at least 2 `items` entries |
+| `section` | `hero`, `divided` | title; message optional |
+| `section` | `image-background` | declared `image`; airy or balanced density |
+| `section` | `color-field` | explicit color-led treatment; airy or balanced density |
+| `statement` | `hero`, `divided` | non-empty `message` |
+| `statement` | `split` | non-empty `message` and at least 1 `items` entry |
+| `statement` | `image-background` | non-empty `message`, declared `image`, airy or balanced density |
+| `statement` | `color-field` | non-empty `message`, explicit color-led treatment, airy or balanced density |
+| `image` | `image-hero` | declared `image` and no `items` |
+| `image` | `image-split`, `split` | declared `image` and at least 1 `items` entry |
+| `image` | `image-background` | declared `image`; airy or balanced density |
+| `kpi` | `grid`, `ledger` | at least 1 `kpis` entry |
+| `kpi` | `color-field` | at least 1 `kpis` entry; airy or balanced density |
+| `kpi` | `image-split` | at least 1 `kpis` entry, declared `image`, airy or balanced density |
+| `comparison` | `divided`, `split` | complete `comparison.left` and `comparison.right` |
+| `process` | `timeline`, `grid`, `ledger` | 2–6 `steps` objects |
+| `process` | `divided` | at least 2 `steps` objects |
+| `table` | `ledger` | `table` with exactly 2 headers |
+| `table` | `grid` | valid `table` |
+| `table` | `split` | valid `chart` |
+| `closing` | `hero`, `split` | title; message optional |
+| `closing` | `image-background` | declared `image`; airy or balanced density |
+| `closing` | `color-field` | explicit color-led treatment; airy or balanced density |
+
+Do not treat a composition name as having the same content contract across roles. In particular, `statement + split` requires supporting `items`, while `cover + split` and `closing + split` do not. If a requested treatment is not essential, omit the optional intent instead of guessing its prerequisites.
+
 The map describes semantic support, not a promise that every content shape fits every density. `process + grid` is an ordered modular grid for 2–6 steps; it is appropriate for a sequence of connected surfaces or stages. `agenda + grid` is for orientation among genuinely equal topics. A table remains a table when rows and columns carry structured data; do not convert it to `process` merely to obtain a grid.
 
 Do not use numbering unless order, navigation, or comparison needs it. Do not place every idea in a card. Do not repeat the same main composition on three consecutive slides.

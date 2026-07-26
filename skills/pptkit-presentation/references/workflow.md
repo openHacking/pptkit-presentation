@@ -2,11 +2,13 @@
 
 ## Intake
 
-Derive everything possible from the user's prompt and files first. Ask only for missing decisions that change the result. Ask one decision at a time, in this order:
+Derive everything possible from the user's prompt and files first. Ask only for missing decisions that change the result. Present all missing decisions in one native form, grouped into:
 
 1. **Purpose:** audience, delivery setting, desired outcome, and language.
 2. **Design:** preferred theme, brand constraints, format, and non-negotiable content.
 3. **Scope and material:** duration/page range, authoritative sources, image policy, visual intensity, confidentiality, and citations.
+
+Show the three local theme previews in the same form/message. Do not create a separate theme-selection turn. A complete specification that explicitly requests generation still skips intake.
 
 Treat every supplied source consistently. Extract available text and structured data, then inspect tables, charts, diagrams, flow direction, grouping, hierarchy, and other information architecture when present. Do not assume that text extraction alone captures the source: a DOCX, PDF, PPTX, spreadsheet, or image may all contain essential visual structure. Normalize the resulting evidence into `sources` before outlining.
 
@@ -31,7 +33,7 @@ Do not claim that this skill creates a custom in-chat plugin form. It can reques
 
 ## Theme selection
 
-Show these local previews and recommend one:
+Show these local previews in the intake message and recommend one:
 
 - `assets/previews/clean-business.svg` — restrained product, strategy, status, and executive decks.
 - `assets/previews/swiss-grid.svg` — technical, data-led, engineering, and launch narratives.

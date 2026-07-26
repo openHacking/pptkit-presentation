@@ -15,7 +15,7 @@ Use this workflow only after `runtime-routing.md` has selected Node. State the f
      --fallback-evidence <CONCRETE_EVIDENCE> \
      --iab-evidence <IAB_STEP_AND_RESULT> \
      --chrome-evidence <CHROME_STEP_AND_RESULT> \
-     --preview-url <RESOLVED_HTTPS_URL>
+     --preview-url <RESOLVED_PREVIEW_URL>
    ```
 
    Supply `--iab-evidence` and `--chrome-evidence` for every browser-failure fallback. Omit them only for `unattended-local-output` or `strict-office-rendering`, where `--browser-check not-required` records the user's requirement. Use `--no-install` only when dependencies are unavailable or when preparing files without execution. The initializer writes `runtime-decision.json` and refuses missing, single-channel, or contradictory routing evidence before creating the project. Never modify the bundled starter or bypass the routing guard.

@@ -30,6 +30,8 @@ npx skills update
 
 The installed skill uses `https://openhacking.github.io/pptkit-presentation/` as its default HTTPS review application, so customers do not need to configure a preview URL. For a private deployment, staging environment, or local development, supply a URL for the current task or set `PPTKIT_PREVIEW_URL`; either overrides the official default. In Codex, the skill discovers the Browser controls and `node_repl js`, tries the in-app `iab` browser first, and then tries external Chrome through `agent.browsers.get("extension")` when the Chrome skill is available. It reads the selected browser's complete documentation before control and does not treat an abbreviated initial tool list as evidence that no browser exists. Chrome uses the same preview bridge, transfer protocol, local storage, and export flow. Only concrete results from both Codex browser channels permit an automatic browser-unavailable fallback to Node; no runtime-choice question interrupts generation.
 
+For repository development, run `pnpm --filter presentation-preview dev`. The command starts the preview at `http://127.0.0.1:5173/` and writes a temporary `.pptkit-local-preview.json` marker containing the repository skill path and local URL. The root `AGENTS.md` routes new Codex tasks to those local inputs without modifying the globally installed skill. Open a new task in the repository while the server is running; existing tasks do not hot-reload repository instructions or skill definitions. HTTP is accepted only for explicit loopback development, while remote preview deployments still require HTTPS.
+
 ## Ask for a deck
 
 Attach or name the relevant files and describe the audience and outcome:
@@ -38,7 +40,7 @@ Attach or name the relevant files and describe the audience and outcome:
 Use PPTKit to turn this quarterly report into an editable 10-slide presentation for our executive review.
 ```
 
-The skill inspects available material, asks only for missing decisions one at a time, shows a theme preview, and proposes a slide-by-slide outline with a composition intent and density check for every page. Those values are persisted in `deck-session.json`; if composition is omitted, the seeded planner makes and reports a deterministic choice. It does not create artifacts until the user selects **Approve and generate**. **Change the plan** returns to the affected decision, while **Cancel** stops without artifacts.
+The skill inspects available material, asks only for missing decisions in one grouped native form, shows the theme previews in that same interaction, and proposes a slide-by-slide outline with a composition intent and density check for every page. Those values are persisted in `deck-session.json`; if composition is omitted, the seeded planner makes and reports a deterministic choice. It does not create artifacts until the user selects **Approve and generate**. **Change the plan** returns to the affected decision, while **Cancel** stops without artifacts.
 
 The generated deck keeps source IDs and filenames out of visible slide copy. `sourceRefs` remain available as provenance and are written to speaker notes; visible citations are included only when the user requests a human-readable citation treatment. Composition intents are role-specific: agents should use the compatibility map in the skill's design-system reference and omit optional composition or visual-intent fields when no deliberate compatible treatment is needed.
 
