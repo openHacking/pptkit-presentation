@@ -3,9 +3,8 @@ const VARIATIONS = new Set(["restrained", "balanced", "expressive"]);
 const ROLES = new Set(["cover", "agenda", "section", "statement", "image", "kpi", "comparison", "process", "table", "closing"]);
 const SOURCE_TYPES = new Set(["text", "document", "table", "image"]);
 const IMAGE_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/svg+xml"]);
-const COMPOSITIONS = new Set(["hero", "split", "ledger", "grid", "divided", "timeline", "image-split", "image-hero", "image-background", "color-field"]);
+const COMPOSITIONS = new Set(["hero", "split", "ledger", "grid", "divided", "timeline", "image-split", "image-hero"]);
 const DENSITIES = new Set(["airy", "balanced", "dense"]);
-const VISUAL_INTENTS = new Set(["content-led", "image-led", "color-led", "data-led", "type-led"]);
 const SHA256 = /^[a-f0-9]{64}$/i;
 const ALL_DENSITIES = ["airy", "balanced", "dense"];
 
@@ -15,50 +14,35 @@ function requiredString(value, path) {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${path} requires a non-empty string.`);
 }
 
-const wantsImageBackground = (slide) => Boolean(slide.image && (slide.composition === "image-background" || slide.visualIntent === "image-led"));
-const wantsColorField = (slide) => slide.composition === "color-field" || slide.visualIntent === "color-led";
-const wantsImageSplit = (slide) => Boolean(slide.image && (slide.composition === "image-split" || slide.visualIntent === "image-led"));
-const supportsImageSplit = (slide) => Boolean(slide.items?.length && (slide.image || slide.visualIntent !== "image-led"));
-const recipe = (role, composition, visualIntent = "content-led", supports = () => true, densities = ALL_DENSITIES) => ({
-  role, composition, visualIntent, supports, densities,
+const recipe = (role, composition, supports = () => true, densities = ALL_DENSITIES) => ({
+  role, composition, supports, densities,
 });
 const LAYOUT_RECIPES = [
-  recipe("cover", "hero", "type-led"),
+  recipe("cover", "hero"),
   recipe("cover", "split"),
-  recipe("cover", "image-background", "image-led", wantsImageBackground, ["airy", "balanced"]),
-  recipe("cover", "color-field", "color-led", wantsColorField, ["airy", "balanced"]),
-  recipe("agenda", "ledger", "content-led", (slide) => Boolean(slide.items?.length)),
-  recipe("agenda", "grid", "content-led", (slide) => (slide.items?.length ?? 0) >= 2),
-  recipe("section", "hero", "type-led"),
-  recipe("section", "divided", "color-led"),
-  recipe("section", "image-background", "image-led", wantsImageBackground, ["airy", "balanced"]),
-  recipe("section", "color-field", "color-led", wantsColorField, ["airy", "balanced"]),
-  recipe("statement", "hero", "type-led", (slide) => Boolean(slide.message)),
-  recipe("statement", "split", "content-led", (slide) => Boolean(slide.message && slide.items?.length)),
-  recipe("statement", "divided", "content-led", (slide) => Boolean(slide.message)),
-  recipe("statement", "image-background", "image-led", (slide) => Boolean(slide.message && wantsImageBackground(slide)), ["airy", "balanced"]),
-  recipe("statement", "color-field", "color-led", (slide) => Boolean(slide.message && wantsColorField(slide)), ["airy", "balanced"]),
-  recipe("image", "image-hero", "image-led", (slide) => Boolean(slide.image && !slide.items?.length), ["airy", "balanced"]),
-  recipe("image", "image-split", "image-led", supportsImageSplit),
-  recipe("image", "split", "image-led", (slide) => Boolean(slide.image && slide.items?.length)),
-  recipe("image", "image-background", "image-led", wantsImageBackground, ["airy", "balanced"]),
-  recipe("kpi", "grid", "data-led", (slide) => Boolean(slide.kpis?.length)),
-  recipe("kpi", "ledger", "data-led", (slide) => Boolean(slide.kpis?.length)),
-  recipe("kpi", "color-field", "color-led", (slide) => Boolean(slide.kpis?.length && wantsColorField(slide)), ["airy", "balanced"]),
-  recipe("kpi", "image-split", "image-led", (slide) => Boolean(slide.kpis?.length && wantsImageSplit(slide)), ["airy", "balanced"]),
-  recipe("comparison", "divided", "content-led", (slide) => Boolean(slide.comparison)),
-  recipe("comparison", "split", "content-led", (slide) => Boolean(slide.comparison)),
-  recipe("process", "timeline", "content-led", (slide) => Boolean(slide.steps?.length)),
-  recipe("process", "grid", "content-led", (slide) => Boolean(slide.steps?.length)),
-  recipe("process", "ledger", "content-led", (slide) => Boolean(slide.steps?.length)),
-  recipe("process", "divided", "content-led", (slide) => (slide.steps?.length ?? 0) >= 2),
-  recipe("table", "ledger", "data-led", (slide) => Boolean(slide.table && slide.table.headers.length === 2)),
-  recipe("table", "grid", "data-led", (slide) => Boolean(slide.table)),
-  recipe("table", "split", "data-led", (slide) => Boolean(slide.chart)),
-  recipe("closing", "hero", "type-led"),
+  recipe("agenda", "ledger", (slide) => Boolean(slide.items?.length)),
+  recipe("agenda", "grid", (slide) => (slide.items?.length ?? 0) >= 2),
+  recipe("section", "hero"),
+  recipe("section", "divided"),
+  recipe("statement", "hero", (slide) => Boolean(slide.message)),
+  recipe("statement", "split", (slide) => Boolean(slide.message && slide.items?.length)),
+  recipe("statement", "divided", (slide) => Boolean(slide.message)),
+  recipe("image", "image-hero", (slide) => Boolean(slide.image && !slide.items?.length), ["airy", "balanced"]),
+  recipe("image", "image-split", (slide) => Boolean(slide.items?.length)),
+  recipe("image", "split", (slide) => Boolean(slide.image && slide.items?.length)),
+  recipe("kpi", "grid", (slide) => Boolean(slide.kpis?.length)),
+  recipe("kpi", "ledger", (slide) => Boolean(slide.kpis?.length)),
+  recipe("comparison", "divided", (slide) => Boolean(slide.comparison)),
+  recipe("comparison", "split", (slide) => Boolean(slide.comparison)),
+  recipe("process", "timeline", (slide) => Boolean(slide.steps?.length)),
+  recipe("process", "grid", (slide) => Boolean(slide.steps?.length)),
+  recipe("process", "ledger", (slide) => Boolean(slide.steps?.length)),
+  recipe("process", "divided", (slide) => (slide.steps?.length ?? 0) >= 2),
+  recipe("table", "ledger", (slide) => Boolean(slide.table && slide.table.headers.length === 2)),
+  recipe("table", "grid", (slide) => Boolean(slide.table)),
+  recipe("table", "split", (slide) => Boolean(slide.chart)),
+  recipe("closing", "hero"),
   recipe("closing", "split"),
-  recipe("closing", "image-background", "image-led", wantsImageBackground, ["airy", "balanced"]),
-  recipe("closing", "color-field", "color-led", wantsColorField, ["airy", "balanced"]),
 ];
 
 function inferDensity(slide) {
@@ -91,11 +75,8 @@ function layoutRepairHint(slide) {
   if (slide.role === "table" && slide.composition === "split" && !slide.chart) {
     return " Table + split requires chart data. Add chart data, choose grid/ledger, or omit composition so the planner can choose a compatible layout.";
   }
-  if (slide.visualIntent === "image-led" && !slide.image) {
-    return " image-led requires a declared image asset. Add image, or omit visualIntent so the planner can choose a compatible treatment.";
-  }
-  return slide.composition || slide.visualIntent
-    ? " Add the content required by that explicit intent, or omit composition/visualIntent so the planner can choose a compatible layout."
+  return slide.composition
+    ? " Add the content required by that explicit composition, or omit composition so the planner can choose a compatible layout."
     : "";
 }
 
@@ -105,12 +86,10 @@ function validateLayout(slide) {
     candidate.role === slide.role
     && candidate.densities.includes(density)
     && candidate.supports(slide)
-    && (!slide.composition || candidate.composition === slide.composition)
-    && (!slide.visualIntent || candidate.visualIntent === slide.visualIntent));
+    && (!slide.composition || candidate.composition === slide.composition));
   if (candidates.length > 0) return;
   const composition = slide.composition ? ` composition ${slide.composition}` : "";
-  const visualIntent = slide.visualIntent ? ` visual intent ${slide.visualIntent}` : "";
-  throw new Error(`No layout recipe supports ${slide.role} slide ${slide.id} with${composition}${visualIntent} density ${density}.${layoutRepairHint(slide)}`);
+  throw new Error(`No layout recipe supports ${slide.role} slide ${slide.id} with${composition} density ${density}.${layoutRepairHint(slide)}`);
 }
 
 function validateSlide(slide, index, sourceIds, assetIds) {
@@ -121,7 +100,7 @@ function validateSlide(slide, index, sourceIds, assetIds) {
   if (!ROLES.has(slide.role)) throw new Error(`${path}.role is unsupported: ${String(slide.role)}.`);
   if (slide.composition !== undefined && !COMPOSITIONS.has(slide.composition)) throw new Error(`${path}.composition is unsupported: ${String(slide.composition)}.`);
   if (slide.density !== undefined && !DENSITIES.has(slide.density)) throw new Error(`${path}.density is unsupported: ${String(slide.density)}.`);
-  if (slide.visualIntent !== undefined && !VISUAL_INTENTS.has(slide.visualIntent)) throw new Error(`${path}.visualIntent is unsupported: ${String(slide.visualIntent)}.`);
+  if (slide.visualIntent !== undefined) throw new Error(`${path}.visualIntent is no longer supported.`);
   if (slide.items !== undefined && !strings(slide.items)) throw new Error(`${path}.items must be an array of strings.`);
   if (slide.steps !== undefined) {
     if (slide.role !== "process") throw new Error(`${path}.steps is only supported for the process role.`);

@@ -4,7 +4,6 @@ import {
   authorDeck,
   analyzePptxEvidence,
   auditRestyleTransformation,
-  auditVisualRhythm,
   inspectPptxPackage,
   inspectStructure,
   NOT_RUN_PACKAGE_CHECK,
@@ -74,7 +73,6 @@ const issuesContainer = byId<HTMLDivElement>("issues");
 let session: DeckSession | undefined;
 let presentation: PresentationDocument | undefined;
 let layoutDecisions: BuildReport["layoutDecisions"] = [];
-let visualAudit: BuildReport["visualAudit"] | undefined;
 let preview: SvgRenderResult | undefined;
 let currentIndex = 0;
 let findings: StructuralIssue[] = [];
@@ -184,9 +182,6 @@ function bridgeState() {
           blockingFindings,
           warningFindings,
           layoutDecisionCount: layoutDecisions.length,
-          visualAuditIssueCount: visualAudit?.issues.length ?? 0,
-          visualAnchorSlideIds: visualAudit?.visualAnchorSlideIds ?? [],
-          maximumQuietRun: visualAudit?.maximumQuietRun ?? 0,
         },
       },
       ...(lastTransferError ? { lastError: lastTransferError } : {}),
@@ -288,7 +283,6 @@ function waitForSessionAssets(activeSession: DeckSession, changed: string[] = []
   revokeObjectUrls();
   presentation = undefined;
   layoutDecisions = [];
-  visualAudit = undefined;
   preview = undefined;
   findings = [];
   currentDiagnostics = [];
@@ -508,13 +502,11 @@ async function renderSession(nextSession: DeckSession, changed: string[] = []) {
   }));
   const normalized = normalizePresentation(nextPresentation);
   const structural = diagnostics.some((diagnostic) => diagnostic.severity === "error") ? [] : inspectStructure(normalized);
-  const nextVisualAudit = auditVisualRhythm(nextSession.deck, normalized, authored.layoutDecisions);
   const nextPreview = await renderPresentationToSvg(nextPresentation);
   const nextFindings = [
     ...specIssues,
     ...diagnosticIssues,
     ...structural,
-    ...nextVisualAudit.issues,
     ...nextPreview.warnings.map((warning) => ({ severity: "warning" as const, code: warning.code, message: warning.message, ...(warning.slideId ? { slideId: warning.slideId } : {}), ...(warning.elementId ? { elementId: warning.elementId } : {}) })),
   ];
   if (token !== renderToken) {
@@ -525,7 +517,6 @@ async function renderSession(nextSession: DeckSession, changed: string[] = []) {
   objectUrls = urls;
   presentation = nextPresentation;
   layoutDecisions = authored.layoutDecisions;
-  visualAudit = nextVisualAudit;
   currentDiagnostics = nextDiagnostics;
   currentExportStatus = "not-run";
   preview = nextPreview;
@@ -567,7 +558,6 @@ function resetPreviewState(message = "Ready") {
   session = undefined;
   presentation = undefined;
   layoutDecisions = [];
-  visualAudit = undefined;
   preview = undefined;
   currentIndex = 0;
   findings = [];
@@ -627,7 +617,7 @@ function download(bytes: Uint8Array, mimeType: string, filename: string) {
 }
 
 async function generateAndDownload() {
-    if (!session || !presentation || !visualAudit || findings.some((item) => item.severity === "error")) return;
+  if (!session || !presentation || findings.some((item) => item.severity === "error")) return;
   downloadButton.disabled = true;
   setStatus("Generating and inspecting PPTX in this browser…", "busy");
   try {
@@ -649,7 +639,6 @@ async function generateAndDownload() {
     const report: BuildReport = {
       runtime: "browser", sessionId: session.id, slideCount: result.slideCount, byteLength: result.byteLength,
       diagnostics: currentDiagnostics, exportWarnings: result.warnings, structuralIssues: findings, layoutDecisions, packageChecks,
-      visualAudit,
       previewStatus: preview?.status ?? "failed", exportStatus: exportIssues.some((issue) => issue.severity === "error") ? "failed" : restyleAudit.issues.length > 0 ? "generated-with-warnings" : "generated",
       renderStatus: "not-run", restyleAudit, generatedAt: new Date().toISOString(),
     };

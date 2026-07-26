@@ -6,7 +6,7 @@ Derive everything possible from the user's prompt and files first. Ask only for 
 
 1. **Purpose:** audience, delivery setting, desired outcome, and language.
 2. **Design:** preferred theme, brand constraints, format, and non-negotiable content.
-3. **Scope and material:** duration/page range, authoritative sources, image policy, visual intensity, confidentiality, and citations.
+3. **Scope and material:** duration/page range, authoritative sources, image policy, confidentiality, and citations.
 
 Show the three local theme previews in the same form/message. Do not create a separate theme-selection turn. A complete specification that explicitly requests generation still skips intake.
 
@@ -47,15 +47,13 @@ After the outline is ready, show a short decision summary that remains visible:
 
 - working title and expected slide count
 - selected theme and image strategy
-- visual thesis, primary medium, and planned visual-anchor slides
+- image strategy and subject-specific visual direction
 - material constraints or known gaps
 - outline overview
 
 Put the full per-slide plan (role, title, message, visual, and source IDs) after the summary. Use an expandable detail section when the host provides one, but do not rely on it for the confirmation control. Then request exactly one outcome through the host's native control, or the numbered fallback:
 
-For each slide, record the role and content shape first. Persist `composition` only when the requested treatment is listed for that role in `design-system.md`; persist `visualIntent` only when it matches that recipe. `density` may be `airy`, `balanced`, or `dense`. Otherwise omit optional intent fields and let the deterministic deck planner select from role/content/theme/adjacent rhythm using `DeckSpec.design.seed`. Revise the outline when several adjacent slides repeat the same composition, four content-led pages create a flat visual run, or dense copy would require text below the theme floor.
-
-For decks of eight or more slides, identify at least two content-appropriate visual anchors in the outline unless the user explicitly requests uniform restraint. An anchor may be image-led, color-led, type-led, or data-led. Never add an irrelevant image merely to satisfy the count.
+For each slide, record the role and content shape first. Persist `composition` only when the requested treatment is listed for that role in `design-system.md`; `density` may be `airy`, `balanced`, or `dense`. Otherwise omit optional intent fields and let the deterministic deck planner select from role/content/theme/adjacent rhythm using `DeckSpec.design.seed`. Revise the outline when several adjacent slides repeat the same composition or dense copy would require text below the theme floor.
 
 1. **Approve and generate** — create the deck session and continue to preview.
 2. **Change the plan** — ask again only for the affected decision, refresh the outline, and present confirmation again.
@@ -76,7 +74,7 @@ project/
 
 The browser source of truth is `deck-session.json`; extracted content is evidence, not slide copy. The Node fallback retains its isolated TypeScript project shape from `node-workflow.md`.
 
-The brief should also state one visual thesis, the primary visual medium, planned visual-anchor slides, subject-specific motifs that may be used, and generic defaults to avoid. Keep deck-level judgments in `deck-brief.md`; persist only per-slide `visualIntent` in the runtime spec and never expose these labels as visible slide copy.
+The brief should also state the image strategy, subject-specific motifs that may be used, and generic defaults to avoid. Keep deck-level judgments in `deck-brief.md` and never expose these labels as visible slide copy.
 
 ## Iteration
 

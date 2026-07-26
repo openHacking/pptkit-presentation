@@ -33,8 +33,4 @@ export type {
   TablePlan,
   ThemeId,
   ThemeOverrides,
-  VisualAudit,
-  VisualIntent,
-  VisualSlideAudit,
-  VisualWeight,
 } from "presentation-workflow";

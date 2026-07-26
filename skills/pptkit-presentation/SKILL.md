@@ -26,7 +26,7 @@ Read `SKILL.md` once, then route references by phase. Do not reopen a reference,
 1. Inspect the request and every supplied source before asking questions. Extract its text, tables, charts, diagrams, flow, and information architecture when present. For an existing PPTX, use structured per-slide evidence; a rendered slide is review evidence, never default slide content. Read [workflow.md](references/workflow.md).
 2. Ask only for decisions that cannot be inferred. Combine the missing purpose/audience, theme, and scope/material decisions into one native form, grouped by section and with recommended defaults. Use the host's native question/form tool (in Codex, `request_user_input`) whenever available.
 3. Show the three style previews in `assets/previews/` in the same intake message unless the user already chose a theme. Recommend exactly one theme.
-4. Build the normalized brief and slide-by-slide outline. Record each slide's role, composition intent, density, visual intent, visual evidence, and source IDs. Persist `composition`, `density`, and `visualIntent` only when they express a deliberate, recipe-compatible constraint; otherwise omit them and let the planner choose. They are runtime inputs, not commentary. For decks of eight or more slides, plan at least two content-appropriate visual anchors unless the user explicitly requests a uniformly restrained treatment. Keep the detailed outline separate from the short decision summary.
+4. Build the normalized brief and slide-by-slide outline. Record each slide's role, composition intent, density, visual evidence, and source IDs. Persist `composition` and `density` only when they express a deliberate, recipe-compatible constraint; otherwise omit them and let the planner choose. They are runtime inputs, not commentary. Keep the detailed outline separate from the short decision summary.
 5. Require exactly one confirmation outcome: **Approve and generate**, **Change the plan**, or **Cancel**. Do not create artifacts, open a preview, install dependencies, or generate PPTX bytes before approval. Skip this gate only for a complete specification that explicitly requests generation without confirmation.
 6. After approval, choose the runtime:
    - Read [runtime-routing.md](references/runtime-routing.md) and complete its state machine. Runtime selection is a recorded decision, not an inference from which tools happen to be visible.
@@ -42,7 +42,6 @@ Read `SKILL.md` once, then route references by phase. Do not reopen a reference,
 
 - Use `DeckSession`. Every `DeckSpec` requires `design.theme`, `design.seed`, and `design.variation`; call `authorDeck()` when authoring outside the preview application.
 - Use `assetId` references in `ImagePlan`; never leak temporary filesystem paths into the browser-neutral deck spec.
-- Images may support cover, section, statement, image, KPI, and closing roles. Use `image-background` only when the image can tolerate a full-bleed crop and the overlaid copy remains readable.
 - Use one of `clean-business`, `swiss-grid`, or `editorial-story` and the ten supported slide roles.
 - Treat the three previews as design languages, not fixed final templates. Use `DeckSpec.design.seed` for reproducible variation and use only `design.theme.overrides` color/font fields when brand adaptation is required.
 - Use native PPTKit text, shapes, connectors, images, and tables. Editable shape-based charts are not native data-bound PowerPoint charts.
@@ -59,11 +58,8 @@ Read `SKILL.md` once, then route references by phase. Do not reopen a reference,
 - Never place internal source IDs, input filenames, local paths, template/style names, or workflow instructions in visible slide copy. If a visible citation is explicitly required, author a human-readable citation as content and keep the internal ID in `sourceRefs`.
 - Split content instead of shrinking below the theme minimum. Treat 18–22 pt as ordinary body copy, 15–18 pt as detail/table copy, and 9–11 pt as metadata only.
 - Use theme-specific compositions and vary narrative rhythm. Do not solve empty space with filler, decorative numbering, repeated rounded cards, or arbitrary icons.
-- Treat `visualIntent` as a commitment about the first visual focus: `content-led`, `image-led`, `color-led`, `data-led`, or `type-led`. Do not label a slide image-led when imagery remains a thumbnail.
-- Treat optional layout intents as constraints. Unless the outline deliberately requires a specific compatible treatment, omit `composition`, `density`, and `visualIntent` and let the planner select from role, content, rhythm, theme, and seed.
-- Do not populate `visualIntent` on every slide by default. In particular, table recipes are `data-led`; agenda, comparison, and process recipes are `content-led`. If no compatible treatment is intentionally required, omit `visualIntent`.
+- Treat optional layout intents as constraints. Unless the outline deliberately requires a specific compatible treatment, omit `composition` and `density` and let the planner select from role, content, rhythm, theme, and seed.
 - Treat `incompatible-composition` as an authoring error. Review `layoutDecisions` in the build report; do not hide or manually rewrite an unexpected seeded choice after export.
-- Review `visualAudit` in the build report. Resolve weak image/color treatments, long low-intensity runs, and missing visual anchors instead of dismissing them as subjective styling.
 - Rebuild and re-preview after each material revision; keep the current slide selected by stable slide ID.
 - Treat SVG renderer warnings as review evidence, not as proof of Office fidelity.
 - Treat whole-slide preview use, oversized source-slide crops, missing source mapping, weak text retention, and `rasterized-slide-risk` as restyle defects. They remain report warnings so a package can be inspected, but must be disclosed and revised unless the user explicitly accepts them.

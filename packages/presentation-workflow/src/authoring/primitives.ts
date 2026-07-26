@@ -78,11 +78,10 @@ export function addRect(
   slide: PresentationSlide,
   tokens: ThemeTokens,
   box: Box,
-  options: { fill?: string; fillOpacity?: number; stroke?: string; strokeOpacity?: number; strokeWidth?: number; radius?: boolean; name?: string } = {},
+  options: { fill?: string; fillOpacity?: number; stroke?: string; strokeOpacity?: number; strokeWidth?: number; radius?: boolean } = {},
 ) {
   slide.addElement({
     type: "shape",
-    ...(options.name ? { name: options.name } : {}),
     shape: options.radius === false || tokens.radius === 0 ? "rect" : "roundRect",
     box,
     style: {
@@ -119,7 +118,6 @@ export function addImage(
   plan: ImagePlan,
   box: Box,
   resolveAsset: AssetResolver,
-  options: { name?: string; decorative?: boolean } = {},
 ) {
   const resolved = resolveAsset(plan.assetId);
   if (!resolved) return;
@@ -134,10 +132,9 @@ export function addImage(
   });
   slide.addElement({
     type: "image",
-    ...(options.name ? { name: options.name } : {}),
     assetId: asset.id,
     box,
     fit: plan.fit ?? "cover",
-    accessibility: { description: plan.alt, decorative: options.decorative ?? false },
+    accessibility: { description: plan.alt },
   });
 }

@@ -53,11 +53,8 @@ function layoutRepairHint(slide: SlidePlan): string {
   if (slide.role === "table" && slide.composition === "split" && !slide.chart) {
     return " Table + split requires chart data. Add chart data, choose grid/ledger, or omit composition so the planner can choose a compatible layout.";
   }
-  if (slide.visualIntent === "image-led" && !slide.image) {
-    return " image-led requires a declared image asset. Add image, or omit visualIntent so the planner can choose a compatible treatment.";
-  }
-  return slide.composition || slide.visualIntent
-    ? " Add the content required by that explicit intent, or omit composition/visualIntent so the planner can choose a compatible layout."
+  return slide.composition
+    ? " Add the content required by that explicit composition, or omit composition so the planner can choose a compatible layout."
     : "";
 }
 
@@ -69,31 +66,22 @@ export function planDeckLayout(spec: DeckSpec): LayoutDecision[] {
     const density = inferDensity(slide);
     let candidates = recipesFor(slide, spec.design.theme.id, density);
     if (slide.composition) candidates = candidates.filter((candidate) => candidate.composition === slide.composition);
-    if (slide.visualIntent) candidates = candidates.filter((candidate) => candidate.visualIntent === slide.visualIntent);
     if (!candidates.length) {
       const intent = slide.composition ? ` composition ${slide.composition}` : "";
-      const visualIntent = slide.visualIntent ? ` visual intent ${slide.visualIntent}` : "";
-      throw new Error(`No layout recipe supports ${slide.role} slide ${slide.id} with${intent}${visualIntent} density ${density}.${layoutRepairHint(slide)}`);
+      throw new Error(`No layout recipe supports ${slide.role} slide ${slide.id} with${intent} density ${density}.${layoutRepairHint(slide)}`);
     }
 
     const recent = decisions.slice(-2).map((decision) => decision.composition);
     const nonRepeating = candidates.filter((candidate) => !recent.every((composition) => composition === candidate.composition));
     if (!slide.composition && nonRepeating.length) candidates = nonRepeating;
-    if (!slide.composition && !slide.visualIntent && variation === "expressive") {
-      const recentWeights = decisions.slice(-3).map((decision) => decision.visualWeight);
-      const peakCandidates = candidates.filter((candidate) => candidate.visualWeight === "peak");
-      if (recentWeights.length === 3 && recentWeights.every((weight) => weight !== "peak") && peakCandidates.length) candidates = peakCandidates;
-    }
     const chosen = candidates[candidateIndex(seed, slide, variation, candidates.length)]!;
     decisions.push({
       slideId: slide.id,
       composition: chosen.composition,
       density,
-      visualIntent: chosen.visualIntent,
-      visualWeight: chosen.visualWeight,
       recipeId: chosen.id,
-      reason: slide.composition || slide.visualIntent
-        ? `Explicit ${[slide.composition && `${slide.composition} composition`, slide.visualIntent && `${slide.visualIntent} visual intent`].filter(Boolean).join(" and ")} matched ${chosen.id}.`
+      reason: slide.composition
+        ? `Explicit ${slide.composition} composition matched ${chosen.id}.`
         : `Selected ${chosen.id} from role, content, ${density} density, adjacent rhythm, theme, and seed.`,
     });
   }
@@ -105,14 +93,12 @@ export function validateLayoutPlan(spec: DeckSpec): StructuralIssue[] {
   for (const slide of spec.slides) {
     const density = inferDensity(slide);
     const candidates = recipesFor(slide, spec.design.theme.id, density);
-    const compatible = candidates.filter((candidate) =>
-      (!slide.composition || candidate.composition === slide.composition)
-      && (!slide.visualIntent || candidate.visualIntent === slide.visualIntent));
-    if ((slide.composition || slide.visualIntent) && compatible.length === 0) {
+    const compatible = candidates.filter((candidate) => !slide.composition || candidate.composition === slide.composition);
+    if (slide.composition && compatible.length === 0) {
       issues.push({
         severity: "error",
         code: "incompatible-composition",
-        message: `${slide.role} slide cannot use ${[slide.composition, slide.visualIntent].filter(Boolean).join(" / ")} with its current content and ${density} density.${layoutRepairHint(slide)}`,
+        message: `${slide.role} slide cannot use ${slide.composition} with its current content and ${density} density.${layoutRepairHint(slide)}`,
         slideId: slide.id,
       });
     } else if (!candidates.length) {

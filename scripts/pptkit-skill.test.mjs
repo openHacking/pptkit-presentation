@@ -138,11 +138,9 @@ test("presentation skill requires progressive native interaction and an approval
   assert.match(designSystem, /parseDeckSession\(\)/);
   assert.match(designSystem, /46–60 pt/);
   assert.match(designSystem, /hero.*split.*ledger.*timeline/is);
-  assert.match(skill, /visualIntent/);
-  assert.match(workflow, /visual anchor/i);
-  assert.match(designSystem, /image-led.*color-led.*data-led.*type-led/is);
-  assert.match(quality, /visualAudit/);
-  assert.match(quality, /flat-visual-run/);
+  assert.doesNotMatch(skill, /visualIntent|visualAudit/);
+  assert.doesNotMatch(workflow, /visual anchor/i);
+  assert.doesNotMatch(designSystem, /image-background|color-field/);
   assert.match(quality, /visible internal source IDs/i);
   assert.match(guide, /customers do not need to configure a preview URL/i);
   assert.match(guide, /does not treat an abbreviated initial tool list as evidence that no browser exists/i);
@@ -391,7 +389,6 @@ test("skill and workflow session validators agree on structured process steps", 
   const { validateDeckSession } = await import(pathToFileURL(path.join(skillRoot, "scripts", "session-contract.mjs")).href);
   const { parseDeckSession } = await import(pathToFileURL(path.join(repoRoot, "packages", "presentation-workflow", "dist", "index.js")).href);
   const valid = JSON.parse(readFileSync(path.join(repoRoot, "apps", "preview", "test", "fixtures", "manual-deck-session.json"), "utf8"));
-  valid.deck.slides[0].visualIntent = "type-led";
   valid.deck.slides[0].composition = "hero";
   assert.equal(validateDeckSession(valid).id, valid.id);
   assert.equal(parseDeckSession(valid).id, valid.id);
@@ -401,22 +398,18 @@ test("skill and workflow session validators agree on structured process steps", 
   assert.throws(() => parseDeckSession(invalid), /deck\.slides\[1\]\.steps\[0\].*object/);
   const invalidVisualIntent = structuredClone(valid);
   invalidVisualIntent.deck.slides[0].visualIntent = "decorative";
-  assert.throws(() => validateDeckSession(invalidVisualIntent), /visualIntent is unsupported: decorative/);
-  assert.throws(() => parseDeckSession(invalidVisualIntent), /visualIntent is unsupported: decorative/);
+  assert.throws(() => validateDeckSession(invalidVisualIntent), /visualIntent is no longer supported/);
+  assert.throws(() => parseDeckSession(invalidVisualIntent), /visualIntent is no longer supported/);
   const invalidComposition = structuredClone(valid);
   invalidComposition.deck.slides[0].composition = "poster";
   assert.throws(() => validateDeckSession(invalidComposition), /composition is unsupported: poster/);
   assert.throws(() => parseDeckSession(invalidComposition), /composition is unsupported: poster/);
-  const incompatibleTableIntent = structuredClone(valid);
-  incompatibleTableIntent.deck.slides[2] = {
-    id: "table",
-    role: "table",
-    title: "Feature matrix",
-    table: { headers: ["Feature", "Value"], rows: [["Preview", "Local"]] },
-    visualIntent: "content-led",
-  };
-  assert.throws(() => validateDeckSession(incompatibleTableIntent), /No layout recipe supports table slide .* visual intent content-led/);
-  assert.throws(() => parseDeckSession(incompatibleTableIntent), /No layout recipe supports table slide .* visual intent content-led/);
+  for (const removedComposition of ["image-background", "color-field"]) {
+    const removed = structuredClone(valid);
+    removed.deck.slides[0].composition = removedComposition;
+    assert.throws(() => validateDeckSession(removed), new RegExp(`composition is unsupported: ${removedComposition}`));
+    assert.throws(() => parseDeckSession(removed), new RegExp(`composition is unsupported: ${removedComposition}`));
+  }
 });
 
 test("the self-contained skill validator accepts every registered workflow recipe", async () => {
@@ -441,15 +434,12 @@ test("the self-contained skill validator accepts every registered workflow recip
     },
     closing: { id: "closing", role: "closing", title: "Closing", message: "Next step." },
   };
-  const imageRoles = new Set(["cover", "section", "statement", "image", "kpi", "closing"]);
   const now = "2026-07-25T00:00:00.000Z";
 
   for (const registered of RECIPE_REGISTRY) {
     const slide = structuredClone(baseSlides[registered.role]);
     slide.composition = registered.composition;
-    slide.visualIntent = registered.visualIntent;
     slide.density = "balanced";
-    if (imageRoles.has(registered.role) && registered.id.includes("image")) slide.image = { assetId: "fixture", alt: "Fixture" };
     if (registered.id === "image-hero") slide.items = undefined;
     const session = {
       id: `recipe-${registered.id}`,

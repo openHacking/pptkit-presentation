@@ -148,119 +148,6 @@ function renderCoverSplit(slide: PresentationSlide, tokens: ThemeTokens, plan: S
   });
 }
 
-function colorLuminance(hex: string) {
-  const channels = [0, 2, 4].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16) / 255);
-  const [red, green, blue] = channels.map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4);
-  return 0.2126 * red! + 0.7152 * green! + 0.0722 * blue!;
-}
-
-function contrastRatio(left: string, right: string) {
-  const brightest = Math.max(colorLuminance(left), colorLuminance(right));
-  const darkest = Math.min(colorLuminance(left), colorLuminance(right));
-  return (brightest + 0.05) / (darkest + 0.05);
-}
-
-function contrastText(fill: string, tokens: ThemeTokens) {
-  return [tokens.text, "FFFFFF", "000000"]
-    .sort((left, right) => contrastRatio(fill, right) - contrastRatio(fill, left))[0]!;
-}
-
-function imageOverlay(tokens: ThemeTokens) {
-  if (tokens.id === "editorial-story") return { fill: tokens.surface, opacity: 0.92, text: tokens.text };
-  if (tokens.id === "swiss-grid") return { fill: tokens.accent, opacity: 0.9, text: contrastText(tokens.accent, tokens) };
-  return { fill: tokens.text, opacity: 0.86, text: "FFFFFF" };
-}
-
-function renderImageBackground(
-  document: PresentationDocument,
-  slide: PresentationSlide,
-  tokens: ThemeTokens,
-  plan: SlidePlan,
-  resolveAsset: AssetResolver,
-) {
-  if (!plan.image) return;
-  const typography = getTypography(tokens.id);
-  addImage(document, slide, { ...plan.image, fit: plan.image.fit ?? "cover" }, { x: 0, y: 0, width: SLIDE.width, height: SLIDE.height }, resolveAsset, { name: "Background image" });
-  const overlay = imageOverlay(tokens);
-  if (plan.role === "statement" || plan.role === "image") {
-    addRect(slide, tokens, { x: 0, y: 326, width: SLIDE.width, height: 214 }, {
-      fill: overlay.fill, fillOpacity: overlay.opacity, strokeOpacity: 0, radius: false, name: "Visual color field",
-    });
-    addText(slide, tokens, plan.title, { x: 62, y: 350, width: 340, height: 36 }, {
-      size: 18, color: overlay.text, bold: true, font: tokens.headingFont, lineSpacing: 1, name: "Slide title",
-    });
-    addText(slide, tokens, plan.message ?? plan.title, { x: 62, y: 398, width: 820, height: 102 }, {
-      size: Math.min(38, typography.displaySize), color: overlay.text, bold: tokens.id !== "editorial-story",
-      font: tokens.headingFont, lineSpacing: typography.titleLineSpacing, verticalAlign: "middle", name: "Image background message",
-    });
-    return;
-  }
-  const panelWidth = plan.role === "section" ? 470 : 520;
-  addRect(slide, tokens, { x: 0, y: 0, width: panelWidth, height: SLIDE.height }, {
-    fill: overlay.fill, fillOpacity: overlay.opacity, strokeOpacity: 0, radius: false, name: "Visual color field",
-  });
-  addText(slide, tokens, roleLabel(plan), { x: 62, y: 42, width: 230, height: 18 }, {
-    size: 9, color: overlay.text, bold: true, lineSpacing: 1, name: "Metadata — section",
-  });
-  addText(slide, tokens, plan.title, { x: 62, y: 142, width: panelWidth - 118, height: 174 }, {
-    size: typography.displaySize, color: overlay.text, bold: tokens.id !== "editorial-story",
-    font: tokens.headingFont, lineSpacing: typography.titleLineSpacing, verticalAlign: "middle",
-    name: plan.role === "cover" ? "Cover title" : plan.role === "closing" ? "Closing message" : "Section title",
-  });
-  addText(slide, tokens, plan.subtitle ?? plan.message ?? "", { x: 64, y: 344, width: panelWidth - 126, height: 92 }, {
-    size: typography.leadSize, color: overlay.text, lineSpacing: 1.12,
-    name: plan.role === "cover" ? "Cover subtitle" : "Image background support",
-  });
-}
-
-function renderColorField(slide: PresentationSlide, tokens: ThemeTokens, plan: SlidePlan, index: number) {
-  const typography = getTypography(tokens.id);
-  const fill = tokens.id === "editorial-story" ? tokens.text : tokens.accent;
-  const secondary = tokens.id === "swiss-grid" ? tokens.text : tokens.accent2;
-  const color = contrastText(fill, tokens);
-  addRect(slide, tokens, { x: 0, y: 0, width: SLIDE.width, height: SLIDE.height }, {
-    fill, strokeOpacity: 0, radius: false, name: "Visual color field",
-  });
-  addRect(slide, tokens, { x: 0, y: 0, width: tokens.id === "editorial-story" ? 22 : 16, height: SLIDE.height }, {
-    fill: secondary, strokeOpacity: 0, radius: false,
-  });
-  addText(slide, tokens, `${roleLabel(plan)} / ${String(index).padStart(2, "0")}`, { x: 60, y: 38, width: 280, height: 18 }, {
-    size: 9, color, bold: true, lineSpacing: 1, name: "Metadata — section",
-  });
-  if (plan.role === "kpi") {
-    addText(slide, tokens, plan.title, { x: 60, y: 86, width: 780, height: 54 }, {
-      size: typography.ranges.title[1], color, bold: tokens.id !== "editorial-story",
-      font: tokens.headingFont, lineSpacing: typography.titleLineSpacing, name: "Slide title",
-    });
-    const kpis = (plan.kpis ?? []).slice(0, 4);
-    const width = (840 - Math.max(0, kpis.length - 1) * 24) / Math.max(1, kpis.length);
-    kpis.forEach((kpi, kpiIndex) => {
-      const x = 60 + kpiIndex * (width + 24);
-      addRule(slide, { x, y: 190 }, { x: x + width, y: 190 }, color, kpiIndex === 0 ? 4 : 1, kpiIndex === 0 ? 1 : 0.45);
-      addText(slide, tokens, kpi.value, { x, y: 218, width, height: 94 }, {
-        size: Math.max(38, 56 - kpis.length * 3), color, bold: true,
-        font: tokens.headingFont, lineSpacing: 1, verticalAlign: "middle", name: "KPI value",
-      });
-      addText(slide, tokens, kpi.label, { x, y: 330, width, height: 48 }, {
-        size: 19, color, bold: true, lineSpacing: 1.04, name: "KPI label",
-      });
-      if (kpi.detail) addText(slide, tokens, kpi.detail, { x, y: 390, width, height: 54 }, {
-        size: 15, color, lineSpacing: 1.12, name: "KPI detail",
-      });
-    });
-    return;
-  }
-  addText(slide, tokens, plan.title, { x: 62, y: 130, width: 820, height: 174 }, {
-    size: typography.displaySize, color, bold: tokens.id !== "editorial-story",
-    font: tokens.headingFont, lineSpacing: typography.titleLineSpacing, verticalAlign: "middle",
-    name: plan.role === "cover" ? "Cover title" : plan.role === "closing" ? "Closing message" : "Color field title",
-  });
-  addRule(slide, { x: 64, y: 330 }, { x: 300, y: 330 }, color, 3, 0.9);
-  addText(slide, tokens, plan.subtitle ?? plan.message ?? "", { x: 64, y: 360, width: 660, height: 92 }, {
-    size: typography.leadSize, color, lineSpacing: 1.12, name: "Color field support",
-  });
-}
-
 function renderAgenda(slide: PresentationSlide, tokens: ThemeTokens, plan: SlidePlan) {
   const items = (plan.items ?? []).slice(0, 6);
   if (tokens.id === "swiss-grid") {
@@ -493,40 +380,6 @@ function renderKpiLedger(slide: PresentationSlide, tokens: ThemeTokens, plan: Sl
   });
 }
 
-function renderKpiImageSplit(
-  document: PresentationDocument,
-  slide: PresentationSlide,
-  tokens: ThemeTokens,
-  plan: SlidePlan,
-  resolveAsset: AssetResolver,
-) {
-  if (plan.image) addImage(document, slide, plan.image, { x: 0, y: 138, width: 410, height: 402 }, resolveAsset, { name: "KPI scene image" });
-  addRect(slide, tokens, { x: 410, y: 138, width: 550, height: 402 }, {
-    fill: tokens.id === "editorial-story" ? tokens.surface : tokens.accent,
-    strokeOpacity: 0,
-    radius: false,
-    name: "Visual color field",
-  });
-  const panelFill = tokens.id === "editorial-story" ? tokens.surface : tokens.accent;
-  const color = contrastText(panelFill, tokens);
-  const kpis = (plan.kpis ?? []).slice(0, 3);
-  const rowHeight = 310 / Math.max(1, kpis.length);
-  kpis.forEach((kpi, index) => {
-    const y = 176 + index * rowHeight;
-    addText(slide, tokens, kpi.value, { x: 458, y, width: 180, height: rowHeight - 14 }, {
-      size: Math.max(34, 48 - kpis.length * 2), color, bold: true, font: tokens.headingFont,
-      lineSpacing: 1, verticalAlign: "middle", name: "KPI value",
-    });
-    addText(slide, tokens, kpi.label, { x: 660, y: y + 8, width: 230, height: 34 }, {
-      size: 19, color, bold: true, lineSpacing: 1.04, name: "KPI label",
-    });
-    addText(slide, tokens, kpi.detail ?? "", { x: 660, y: y + 48, width: 230, height: 42 }, {
-      size: 15, color, lineSpacing: 1.1, name: "KPI detail",
-    });
-    if (index < kpis.length - 1) addRule(slide, { x: 458, y: y + rowHeight }, { x: 892, y: y + rowHeight }, color, 0.75, 0.35);
-  });
-}
-
 function renderComparison(slide: PresentationSlide, tokens: ThemeTokens, plan: SlidePlan) {
   const columns = [plan.comparison?.left, plan.comparison?.right];
   const dividerX = 480;
@@ -622,7 +475,6 @@ function renderProcessGrid(slide: PresentationSlide, tokens: ThemeTokens, plan: 
       stroke,
       strokeOpacity: tokens.id === "swiss-grid" ? 0.3 : 0.1,
       radius: tokens.id !== "swiss-grid",
-      name: "Process grid item",
     });
     addText(slide, tokens, String(index + 1).padStart(2, "0"), { x: x + 14, y: y + 14, width: 42, height: 26 }, {
       size: 16, color: tokens.accent, bold: true, lineSpacing: 1, name: "Process sequence",
@@ -856,14 +708,6 @@ export function renderSlide(
     background: solid(tokens.background),
     ...(notes ? { notes } : {}),
   });
-  if (decision.recipeId.endsWith("image-background") || decision.recipeId === "image-background") {
-    renderImageBackground(document, slide, tokens, plan, resolveAsset);
-    return slide;
-  }
-  if (decision.recipeId.endsWith("color-field")) {
-    renderColorField(slide, tokens, plan, index);
-    return slide;
-  }
   if (plan.role === "cover") {
     if (decision.recipeId === "cover-split") renderCoverSplit(slide, tokens, plan);
     else renderCover(slide, tokens, plan);
@@ -882,7 +726,6 @@ export function renderSlide(
   else if (plan.role === "image") renderImage(document, slide, tokens, plan, resolveAsset, decision.recipeId);
   else if (plan.role === "kpi") {
     if (decision.recipeId === "kpi-ledger") renderKpiLedger(slide, tokens, plan);
-    else if (decision.recipeId === "kpi-image-split") renderKpiImageSplit(document, slide, tokens, plan, resolveAsset);
     else renderKpi(slide, tokens, plan);
   }
   else if (plan.role === "comparison") decision.recipeId === "comparison-split" ? renderComparisonSplit(slide, tokens, plan) : renderComparison(slide, tokens, plan);

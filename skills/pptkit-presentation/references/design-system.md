@@ -52,48 +52,37 @@ The ten public roles remain semantic. Composition is an optional public intent a
 - `divided`: two positions separated by a meaningful rule or field change.
 - `timeline`: ordered process where sequence matters.
 - `image-split` / `image-hero`: imagery as evidence, not decoration.
-- `image-background`: full-bleed imagery with a deliberate high-contrast text field.
-- `color-field`: a large tonal field that creates hierarchy or a narrative transition.
 
 Composition names are not a global compatibility list. Use this role map when an explicit composition is necessary; otherwise omit `composition` and let the planner choose:
 
-| Role | Supported compositions | Default visual intent |
-| --- | --- | --- |
-| `cover` | `hero`, `split`, `image-background`, `color-field` | recipe-defined |
-| `agenda` | `ledger`, `grid` | `content-led` |
-| `section` | `hero`, `divided`, `image-background`, `color-field` | recipe-defined |
-| `statement` | `hero`, `split`, `divided`, `image-background`, `color-field` | recipe-defined |
-| `image` | `image-hero`, `image-split`, `split`, `image-background` | `image-led` |
-| `kpi` | `grid`, `ledger`, `color-field`, `image-split` | recipe-defined |
-| `comparison` | `divided`, `split` | `content-led` |
-| `process` | `timeline`, `grid`, `ledger`, `divided` | `content-led` |
-| `table` | `ledger` (exactly 2 headers), `grid`, `split` (chart data) | `data-led` |
-| `closing` | `hero`, `split`, `image-background`, `color-field` | recipe-defined |
+| Role | Supported compositions |
+| --- | --- |
+| `cover` | `hero`, `split` |
+| `agenda` | `ledger`, `grid` |
+| `section` | `hero`, `divided` |
+| `statement` | `hero`, `split`, `divided` |
+| `image` | `image-hero`, `image-split`, `split` |
+| `kpi` | `grid`, `ledger` |
+| `comparison` | `divided`, `split` |
+| `process` | `timeline`, `grid`, `ledger`, `divided` |
+| `table` | `ledger` (exactly 2 headers), `grid`, `split` (chart data) |
+| `closing` | `hero`, `split` |
 
-**Default authoring rule:** omit `composition`, `density`, and `visualIntent` unless the outline deliberately requires that exact treatment. An optional intent is a constraint, not a style suggestion. The planner already selects a deterministic compatible recipe from role, content shape, density, adjacent rhythm, theme, and seed.
+**Default authoring rule:** omit `composition` and `density` unless the outline deliberately requires that exact treatment. An optional intent is a constraint, not a style suggestion. The planner already selects a deterministic compatible recipe from role, content shape, density, adjacent rhythm, theme, and seed.
 
 When an explicit composition is necessary, satisfy these content prerequisites before writing `deck-session.json`:
 
 | Role | Explicit composition | Required content shape |
 | --- | --- | --- |
 | `cover` | `hero`, `split` | title; subtitle optional |
-| `cover` | `image-background` | declared `image`; airy or balanced density |
-| `cover` | `color-field` | explicit color-led treatment; airy or balanced density |
 | `agenda` | `ledger` | at least 1 `items` entry |
 | `agenda` | `grid` | at least 2 `items` entries |
 | `section` | `hero`, `divided` | title; message optional |
-| `section` | `image-background` | declared `image`; airy or balanced density |
-| `section` | `color-field` | explicit color-led treatment; airy or balanced density |
 | `statement` | `hero`, `divided` | non-empty `message` |
 | `statement` | `split` | non-empty `message` and at least 1 `items` entry |
-| `statement` | `image-background` | non-empty `message`, declared `image`, airy or balanced density |
-| `statement` | `color-field` | non-empty `message`, explicit color-led treatment, airy or balanced density |
 | `image` | `image-hero` | declared `image` and no `items` |
 | `image` | `image-split`, `split` | declared `image` and at least 1 `items` entry |
-| `image` | `image-background` | declared `image`; airy or balanced density |
 | `kpi` | `grid`, `ledger` | at least 1 `kpis` entry |
-| `kpi` | `color-field` | at least 1 `kpis` entry; airy or balanced density |
-| `kpi` | `image-split` | at least 1 `kpis` entry, declared `image`, airy or balanced density |
 | `comparison` | `divided`, `split` | complete `comparison.left` and `comparison.right` |
 | `process` | `timeline`, `grid`, `ledger` | 2–6 `steps` objects |
 | `process` | `divided` | at least 2 `steps` objects |
@@ -101,8 +90,6 @@ When an explicit composition is necessary, satisfy these content prerequisites b
 | `table` | `grid` | valid `table` |
 | `table` | `split` | valid `chart` |
 | `closing` | `hero`, `split` | title; message optional |
-| `closing` | `image-background` | declared `image`; airy or balanced density |
-| `closing` | `color-field` | explicit color-led treatment; airy or balanced density |
 
 Do not treat a composition name as having the same content contract across roles. In particular, `statement + split` requires supporting `items`, while `cover + split` and `closing + split` do not. If a requested treatment is not essential, omit the optional intent instead of guessing its prerequisites.
 
@@ -111,18 +98,6 @@ The map describes semantic support, not a promise that every content shape fits 
 Do not use numbering unless order, navigation, or comparison needs it. Do not place every idea in a card. Do not repeat the same main composition on three consecutive slides.
 
 Theme tokens are safety rails, not a page template. Brand adaptation may override the six theme colors and heading/body fonts, but must preserve contrast and the typography floors. Never expose arbitrary coordinates, margins, radii, or per-element sizes through the deck spec.
-
-## Visual direction
-
-Use `visualIntent` to name the first visual focus of a slide:
-
-- `content-led`: structured copy and relationships are primary.
-- `image-led`: imagery occupies meaningful visual area and carries evidence, object identity, scene, or emotion.
-- `color-led`: a large color field establishes hierarchy, contrast, or transition.
-- `data-led`: a chart, table, KPI, or quantitative comparison dominates.
-- `type-led`: one statement or title carries the slide at presentation scale.
-
-For decks of eight or more slides, plan at least two content-appropriate visual anchors unless the user explicitly requests a uniformly restrained sequence. Do not use four consecutive low-intensity content-led slides without an intentional transition.
 
 ## Ten roles
 
@@ -146,10 +121,9 @@ Use the exact `SlidePlan` field shapes below. Do not substitute older or display
 - `table`: `{ "headers": ["Column A", "Column B"], "rows": [["A1", "B1"]] }`; use `headers`, never `columns`.
 - `kpis`: `[{ "value": "72%", "label": "Retention", "detail": "Optional detail" }]`.
 - `image`: `{ "assetId": "declared-asset-id", "alt": "Description", "fit": "contain" }`.
-- `visualIntent`: one of `content-led`, `image-led`, `color-led`, `data-led`, or `type-led`.
 - `steps`: `[{ "title": "Prepare", "detail": "Optional supporting explanation" }, { "title": "Review" }]`; use 2–6 objects and never string entries.
 
-Do not fill `composition` or `visualIntent` mechanically. Omit them unless the narrative requires a specific treatment and the role/content shape supports it. Use the role map above as the allow-list, not the union of all composition names. Table recipes are always `data-led`; a table `ledger` requires exactly two headers, a table `split` requires chart data, and an ordinary table can use `grid`. Agenda, comparison, and process recipes are `content-led`.
+Do not fill `composition` mechanically. Omit it unless the narrative requires a specific treatment and the role/content shape supports it. Use the role map above as the allow-list, not the union of all composition names. A table `ledger` requires exactly two headers, a table `split` requires chart data, and an ordinary table can use `grid`.
 
 Every `ExtractedSource` uses `id`, `name`, `mimeType`, `type`, and `warnings`; text sources put extracted text in `content`. Fields such as `kind` and `slideCount` are not part of `DeckSession`. Before transfer, parse the completed file with `parseDeckSession()` or prepare it with `preparePptkitTransfer()`; both perform schema and layout-recipe validation. A JSON syntax check alone is insufficient.
 
@@ -183,7 +157,6 @@ Minimal valid role shapes (all also require `id`, `role`, and `title`):
 - Reference PNG, JPEG, GIF, or SVG images by stable `assetId`. Browser sessions resolve transferred IndexedDB `blob:` assets; Node fallback projects copy files into `assets/`.
 - Provide width and height from `content/sources.json` so `contain` and `cover` are deterministic.
 - Use `cover` for photographic crops and `contain` for screenshots, diagrams, and UI evidence.
-- Images may appear on cover, section, statement, image, KPI, and closing slides. Use `image-background` only for assets whose important subject survives a 16:9 cover crop.
 - Preserve genuine UI screenshots, scans, and user-supplied evidence images when redrawing would change their meaning. A rendered source slide is not a screenshot asset: in restyle work, extract and reconstruct its text and information structure instead.
 - If a complex source diagram needs raster fallback, crop only the diagram region and pair it with native explanatory copy. Record the crop provenance; using 80% or more of the source slide triggers an oversized-crop warning.
 - Align image slots to the composition grid. Repeated images in one group must share height, crop behavior, and visual weight.

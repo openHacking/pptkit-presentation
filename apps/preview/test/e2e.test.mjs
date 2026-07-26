@@ -360,7 +360,6 @@ test("imports, persists, revises, previews, and exports through the chunk protoc
   const readyBridge = await domBridge(page);
   assert.equal(readyBridge.state.preview.status, "ready");
   assert.equal(readyBridge.state.preview.qa.layoutDecisionCount, 3);
-  assert.equal(readyBridge.state.preview.qa.visualAuditIssueCount, 0);
   assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-session-id"), "browser-review");
   assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-revision"), "1");
   assert.equal(await page.getByTestId("pptkit-preview-bridge").getAttribute("data-preview-status"), "ready");

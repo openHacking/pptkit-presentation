@@ -7,4 +7,3 @@ export * from "./restyle-audit.js";
 export * from "./session.js";
 export * from "./themes.js";
 export * from "./verify.js";
-export * from "./visual-audit.js";

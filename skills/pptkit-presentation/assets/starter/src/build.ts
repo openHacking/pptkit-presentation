@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { normalizePresentation, validatePresentation } from "@pptkit/core";
 import { generatePptx } from "@pptkit/pptx-exporter/node";
-import { analyzePptxEvidence, auditRestyleTransformation, auditVisualRhythm, authorDeck, inspectPptxPackage, inspectStructure, validateDeckSpec } from "presentation-workflow";
+import { analyzePptxEvidence, auditRestyleTransformation, authorDeck, inspectPptxPackage, inspectStructure, validateDeckSpec } from "presentation-workflow";
 
 import type { BuildReport, ExtractedSource, SessionAsset, StructuralIssue } from "./contracts.js";
 import { deckSpec } from "./deck-spec.js";
@@ -31,14 +31,13 @@ const availableAssetIds = new Set(await readdir(path.resolve("assets")));
 const specIssues = validateDeckSpec(deckSpec, availableAssetIds);
 const { presentation: document, layoutDecisions } = authorDeck(deckSpec, (assetId) => resolveNodeAsset(assetId, mimeTypeForAsset(assetId)));
 const normalizedPresentation = normalizePresentation(document);
-const visualAudit = auditVisualRhythm(deckSpec, normalizedPresentation, layoutDecisions);
 const diagnostics = validatePresentation(document);
 const diagnosticIssues: StructuralIssue[] = diagnostics
   .filter((item) => item.severity === "error")
   .map((item) => ({ severity: "error", code: item.code, message: item.message, slideId: item.slideId, elementId: item.elementId }));
 const structuralIssues = diagnostics.some((item) => item.severity === "error")
   ? [...specIssues, ...diagnosticIssues]
-  : [...specIssues, ...inspectStructure(normalizedPresentation), ...visualAudit.issues];
+  : [...specIssues, ...inspectStructure(normalizedPresentation)];
 
 let report: BuildReport = {
   runtime: "node",
@@ -49,7 +48,6 @@ let report: BuildReport = {
   exportWarnings: [],
   structuralIssues,
   layoutDecisions,
-  visualAudit,
   packageChecks: { status: "not-run", valid: false, parts: 0, slideParts: 0, issues: [] },
   previewStatus: "not-run",
   exportStatus: "not-run",

@@ -11,7 +11,6 @@ In browser mode, require a successful session import and SVG render. In Node mod
 - no exporter warning unless explicitly accepted and reported
 - before export: one preview SVG per planned slide and no blocking session/layout/asset issue
 - before export: review the build report's `layoutDecisions` and a whole-deck contact sheet in addition to individual slides
-- before export: review `visualAudit`, including image/color coverage, visual anchors, and the maximum low-intensity run
 - for restyle work: review source-page coverage, text-retention warnings, asset provenance, oversized crops, and rasterized-slide risks
 - after the user requests export: a readable ZIP containing content types, presentation, slide, and relationship parts
 - after export: XML-shaped package parts with matching slide count
@@ -38,7 +37,6 @@ Inspect every rendered slide for:
 - collisions and accidental tangencies
 - inconsistent margins, alignment, or page rhythm
 - repeated main compositions, stranded text blocks, or filler used to occupy empty space
-- weak image-led slides (`weak-image-led-slide`), unearned color fields (`weak-color-led-slide`), decorative thumbnail imagery, or four consecutive low-intensity content-led slides (`flat-visual-run`)
 - stretched/cropped evidence and substituted fonts
 - unsupported glyphs or missing media
 - visible internal source IDs, filenames, paths, template names, or workflow commentary
@@ -58,6 +56,5 @@ Attack at least these failure modes before delivery:
 7. Provenance disappears when the visible source footer is removed, or leaks back into visible copy through a source label.
 8. A layout passes geometry checks but still creates weak hierarchy, excessive whitespace, or three repeated compositions in sequence.
 9. A restyle deck appears polished but replaces editable source pages with rendered thumbnails, loses unmapped source slides, or hides poor text retention inside images.
-10. A deck passes geometry checks but remains visually flat because images stay small, color fields never shape hierarchy, or all strong treatments cluster at the beginning.
 
 Fix the underlying source or layout. Do not dismiss a failure because a `.pptx` file exists.
