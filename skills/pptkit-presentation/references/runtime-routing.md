@@ -2,6 +2,10 @@
 
 Use this gate only after the user has approved generation. It owns the Browser-versus-Node decision and must finish before either workflow creates artifacts.
 
+## Host capability
+
+Hosts that provably have no browser tool cannot open the preview application. For those hosts (for example DeepSeek Harness — read [dsh-harness.md](dsh-harness.md)), skip the browser state machine below: record the fallback as `host-no-browser` with `--browser-check not-required`, `--browser-step host-capability`, and concrete `--fallback-evidence` naming the host and its tool surface, then continue with `node-workflow.md`. Never fabricate `iab` or Chrome results for a host that lacks those channels. The browser state machine below remains the only path for hosts that have a browser tool.
+
 ## State machine
 
 1. Resolve the preview URL from the user or host, `PPTKIT_PREVIEW_URL`, or `https://openhacking.github.io/pptkit-presentation/`, in that order. Require HTTPS except for an explicitly supplied HTTP loopback URL using `127.0.0.1`, `localhost`, or `[::1]`.
@@ -19,9 +23,9 @@ Do not read or execute `node-workflow.md` while the decision is unresolved. In C
 
 The guarded Node initializer requires all of these values and writes them to `runtime-decision.json` in the generated project:
 
-- `fallback-reason`: one of `browser-setup-failed`, `preview-navigation-failed`, `preview-incompatible`, `browser-api-unavailable`, `browser-transfer-failed`, `unattended-local-output`, or `strict-office-rendering`;
+- `fallback-reason`: one of `browser-setup-failed`, `preview-navigation-failed`, `preview-incompatible`, `browser-api-unavailable`, `browser-transfer-failed`, `unattended-local-output`, `strict-office-rendering`, or `host-no-browser`;
 - `browser-check`: `failed` for an attempted browser check or `not-required` for a measured/requested suitability condition;
-- `browser-step`: `setup`, `selection`, `navigation`, `compatibility`, `api-check`, `transfer`, or `user-requirement`, consistent with the reason;
+- `browser-step`: `setup`, `selection`, `navigation`, `compatibility`, `api-check`, `transfer`, `user-requirement`, or `host-capability`, consistent with the reason;
 - `fallback-evidence`: the concrete browser/bridge failure result or user requirement. For Codex setup, selection, or navigation fallback, keep the existing string field and include both labeled results, for example `iab: <step and error>; chrome: <unavailable result, step and error>`; and
 - `iab-evidence` and `chrome-evidence`: required as separate `<step>: <concrete result>` fields for every `browser-check: failed` decision. A missing control in the initial tool list, `not visible`, or `not attempted` is rejected as evidence. These structured fields prevent a free-form summary from silently skipping external Chrome; and
 - `preview-url`: the resolved secure URL, allowing HTTP only for explicit loopback development and otherwise defaulting to the official HTTPS preview application.

@@ -6,3 +6,7 @@ dist/
 .DS_Store
 output/
 .pptkit-local-preview.json
+packages/dsh-plugin-pptkit-presentation/skill/
+.playwright-browsers/
+.pnpm-store/
+.npmrc-user

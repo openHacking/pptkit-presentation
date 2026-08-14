@@ -1,0 +1,17 @@
+# Bundle patch applied over the selected DSH profile when this package is
+# listed in `dsh.profile.bundles` (see the dsh plugin / profile documentation
+# in deepseek-ai/deepseek-harness). The row id is deployment-local; the
+# package name must match package.json exactly.
+#
+# The plugin registers a `ctx.skills` provider that serves the bundled
+# pptkit-presentation Agent Skill (SKILL.md, references, scripts, and assets)
+# so the model-facing skill catalog and `skill` tool surface it like any
+# locally installed Agent Skill.
+
+- insert:
+    - id: pptkit-presentation
+      name: dsh-plugin-pptkit-presentation
+      config:
+        # Optional absolute path to a pptkit-presentation skill directory.
+        # Omit to use the skill bundled with this package.
+        # skillDir: /absolute/path/to/pptkit-presentation

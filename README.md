@@ -69,6 +69,24 @@ Export only after reviewing the browser preview:
 The preview looks good. Generate and download the editable PPTX.
 ```
 
+## DeepSeek Harness
+
+DeepSeek Harness (DSH) is supported through the `dsh-plugin-pptkit-presentation` bundle in `packages/dsh-plugin-pptkit-presentation`. Install it into a DSH profile:
+
+```bash
+# local checkout (run pnpm --filter dsh-plugin-pptkit-presentation build first)
+dsh plugin --profile web add "file:$PWD/packages/dsh-plugin-pptkit-presentation"
+# from GitHub (prepare build must be allowed — add the key pnpm prints to the
+# profile's pnpm-workspace.yaml allowBuilds, then re-run)
+dsh plugin --profile web add "openHacking/pptkit-presentation#path:/packages/dsh-plugin-pptkit-presentation"
+```
+
+The bundle registers the `pptkit-presentation` skill with DSH's skill catalog. DSH has no browser tool, so the skill routes to the Node workflow with `host-no-browser` evidence and delivers `output/deck.pptx` plus build reports as chat attachments. See the [DeepSeek Harness guide](docs/guides/dsh-harness.md) for install options, tool mapping, and delivery. No bundle needed? Copy the skill into DSH's native skill root:
+
+```bash
+node scripts/install-dsh.mjs
+```
+
 ## How it works
 
 1. Provide a topic or attach source files, then describe the audience and desired outcome.
@@ -85,6 +103,7 @@ The browser application is a review and quality-assurance surface, not a pixel-i
 | `packages/presentation-workflow` | Portable deck sessions, deterministic authoring recipes, source extraction, and quality checks. |
 | `apps/preview` | Local-first browser review and explicit PPTX export application. |
 | `skills/pptkit-presentation` | Cross-agent workflow, references, theme previews, and isolated Node fallback starter. |
+| `packages/dsh-plugin-pptkit-presentation` | DeepSeek Harness plugin bundle that registers the skill with DSH's skill catalog. |
 
 The underlying presentation engine lives in [openHacking/pptkit](https://github.com/openHacking/pptkit). This repository consumes only its published public APIs.
 

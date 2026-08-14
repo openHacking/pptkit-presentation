@@ -2,6 +2,7 @@
   "files": [],
   "references": [
     { "path": "./packages/presentation-workflow" },
+    { "path": "./packages/dsh-plugin-pptkit-presentation" },
     { "path": "./apps/preview" }
   ]
 }

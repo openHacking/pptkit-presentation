@@ -821,3 +821,80 @@ export const deckSpec: DeckSpec = {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("DSH host branch keeps Codex routing intact and accepts host-no-browser evidence", () => {
+  const dshReference = readFileSync(path.join(skillRoot, "references", "dsh-harness.md"), "utf8");
+  const skill = readFileSync(path.join(skillRoot, "SKILL.md"), "utf8");
+  const runtimeRouting = readFileSync(path.join(skillRoot, "references", "runtime-routing.md"), "utf8");
+  const initSource = readFileSync(initScript, "utf8");
+
+  assert.match(dshReference, /no browser tool/i);
+  assert.match(dshReference, /host-no-browser/);
+  assert.match(dshReference, /ask_user_question/);
+  assert.match(dshReference, /presentation-workflow/);
+  assert.match(skill, /ask_user_question/);
+  assert.match(skill, /host-no-browser/);
+  assert.match(runtimeRouting, /Host capability/);
+  assert.match(runtimeRouting, /host-no-browser/);
+  assert.match(initSource, /host-no-browser.*host-capability/s);
+
+  const root = mkdtempSync(path.join(os.tmpdir(), "pptkit-skill-dsh-"));
+  try {
+    const project = path.join(root, "deck");
+    const result = spawnSync(
+      process.execPath,
+      [
+        initScript,
+        "--output",
+        project,
+        "--no-install",
+        "--fallback-reason",
+        "host-no-browser",
+        "--browser-check",
+        "not-required",
+        "--browser-step",
+        "host-capability",
+        "--fallback-evidence",
+        "DeepSeek Harness web profile: no browser tool in the agent tool set",
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(result.status, 0, result.stderr);
+    const decision = JSON.parse(readFileSync(path.join(project, "runtime-decision.json"), "utf8"));
+    assert.equal(decision.reason, "host-no-browser");
+    assert.equal(decision.browserCheck.status, "not-required");
+    assert.equal(decision.browserCheck.step, "host-capability");
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("dsh install helper copies the skill into a DSH skill root", () => {
+  const home = mkdtempSync(path.join(os.tmpdir(), "pptkit-skill-dsh-home-"));
+  try {
+    const installScript = path.join(repoRoot, "scripts", "install-dsh.mjs");
+    const env = { ...process.env, DSH_HOME: home };
+
+    const first = spawnSync(process.execPath, [installScript], { encoding: "utf8", env });
+    assert.equal(first.status, 0, first.stderr);
+    assert.ok(existsSync(path.join(home, "skills", "pptkit-presentation", "SKILL.md")));
+
+    const second = spawnSync(process.execPath, [installScript], { encoding: "utf8", env });
+    assert.equal(second.status, 1);
+    assert.match(second.stderr, /--force/);
+
+    const third = spawnSync(process.execPath, [installScript, "--force"], { encoding: "utf8", env });
+    assert.equal(third.status, 0, third.stderr);
+
+    const projectRoot = mkdtempSync(path.join(os.tmpdir(), "pptkit-skill-dsh-project-"));
+    try {
+      const project = spawnSync(process.execPath, [installScript, "--project"], { encoding: "utf8", cwd: projectRoot });
+      assert.equal(project.status, 0, project.stderr);
+      assert.ok(existsSync(path.join(projectRoot, ".dsh", "skills", "pptkit-presentation", "SKILL.md")));
+    } finally {
+      rmSync(projectRoot, { recursive: true, force: true });
+    }
+  } finally {
+    rmSync(home, { recursive: true, force: true });
+  }
+});

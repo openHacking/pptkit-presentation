@@ -17,6 +17,7 @@ const fallbackRules = new Map([
   ["browser-transfer-failed", { browserCheck: "failed", steps: new Set(["transfer"]) }],
   ["unattended-local-output", { browserCheck: "not-required", steps: new Set(["user-requirement"]) }],
   ["strict-office-rendering", { browserCheck: "not-required", steps: new Set(["user-requirement"]) }],
+  ["host-no-browser", { browserCheck: "not-required", steps: new Set(["host-capability"]) }],
 ]);
 const browserEvidencePattern = /^(setup|selection|navigation|compatibility|api-check|transfer):\s+\S.{8,}$/i;
 const invalidBrowserEvidencePattern = /\b(not attempted|not visible|initial(?:ly)? visible|initial tool list)\b/i;
