@@ -8,6 +8,21 @@ Node workflow.
 
 ## Install
 
+The commands below need the `dsh` CLI, which ships in the npm package
+[`@deepseek-ai/dsh`](https://www.npmjs.com/package/@deepseek-ai/dsh). If
+`command -v dsh` prints nothing, install it once or run every command via
+npx:
+
+```bash
+npm install -g @deepseek-ai/dsh
+# or: npx -y @deepseek-ai/dsh plugin --profile web add ...
+```
+
+`dsh plugin` forwards to `pnpm` in the profile directory
+(`$DSH_HOME/profiles/<name>`, `$DSH_HOME` defaults to `~/.dsh`); make sure
+`pnpm` is on `PATH`. Restart DSH after adding the bundle — a running process
+does not hot-reload profile bundles.
+
 Run the plugin build first (it mirrors the repository's source-of-truth skill
 into this package):
 

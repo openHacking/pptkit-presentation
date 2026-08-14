@@ -6,6 +6,25 @@ DSH has no in-app browser tool, so the browser preview workflow is unavailable t
 
 ## Install
 
+### Prerequisite: the `dsh` CLI
+
+The bundle commands below need the `dsh` CLI from the npm package
+[`@deepseek-ai/dsh`](https://www.npmjs.com/package/@deepseek-ai/dsh). It is not
+installed by this repository and is not present by default. Check with
+`command -v dsh`; if it prints nothing:
+
+```bash
+npm install -g @deepseek-ai/dsh        # adds dsh to PATH
+# or skip the global install and prefix every command below with npx:
+#   npx -y @deepseek-ai/dsh plugin --profile web add ...
+```
+
+`dsh plugin` forwards to `pnpm` inside the profile directory
+(`$DSH_HOME/profiles/<name>`, `$DSH_HOME` defaults to `~/.dsh`), so `pnpm`
+must also be on `PATH`. The profile is initialized on first use. After adding
+the plugin, **restart DSH**: the running process does not hot-reload profile
+bundles, so the new skill appears in the catalog only after a restart.
+
 ### Bundle (recommended)
 
 The bundle lives in `packages/dsh-plugin-pptkit-presentation`. Build it once (it mirrors the source-of-truth skill into the package), then install into a DSH profile:

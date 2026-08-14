@@ -49,6 +49,8 @@ Keep source material local. The Node adapter is the only layer allowed to resolv
 
 ## Install and update
 
+Prerequisite: the bundle commands below need the `dsh` CLI (the npm package `@deepseek-ai/dsh`). If `command -v dsh` fails, install it once with `npm install -g @deepseek-ai/dsh`, or prefix each command with `npx -y @deepseek-ai/dsh`. `dsh plugin` runs pnpm inside `$DSH_HOME/profiles/<name>` (`$DSH_HOME` defaults to `~/.dsh`), and the DSH process must be restarted after the add so the new bundle layer loads.
+
 The skill runs in DSH through either the bundle or a native skill copy:
 
 - **Bundle (recommended):** install `dsh-plugin-pptkit-presentation` into the `web` or `headless` profile with `dsh plugin --profile <name> add <spec>`. The bundle registers the skill with DSH's `ctx.skills` registry; `dsh plugin` forwards pnpm, so updates flow through pnpm.

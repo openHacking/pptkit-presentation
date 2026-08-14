@@ -73,7 +73,17 @@ The preview looks good. Generate and download the editable PPTX.
 
 DeepSeek Harness (DSH) is supported through the `dsh-plugin-pptkit-presentation` bundle in `packages/dsh-plugin-pptkit-presentation`. Install it into a DSH profile:
 
+> **Prerequisite: the `dsh` CLI.** `dsh` is the command line of the npm package [`@deepseek-ai/dsh`](https://www.npmjs.com/package/@deepseek-ai/dsh) and is **not** installed by this repository. If `command -v dsh` prints nothing, install it once:
+>
+> ```bash
+> npm install -g @deepseek-ai/dsh
+> ```
+>
+> or skip the global install and prefix every command below with `npx -y @deepseek-ai/dsh` (for example `npx -y @deepseek-ai/dsh plugin --profile web add ...`). `dsh plugin` runs `pnpm` inside `$DSH_HOME/profiles/<name>` (`$DSH_HOME` defaults to `~/.dsh`), so `pnpm` must be on `PATH` too. **Restart DSH after adding the plugin** — a running process does not hot-reload profile bundles.
+
 ```bash
+# from npm (published bundle)
+dsh plugin --profile web add dsh-plugin-pptkit-presentation
 # local checkout (run pnpm --filter dsh-plugin-pptkit-presentation build first)
 dsh plugin --profile web add "file:$PWD/packages/dsh-plugin-pptkit-presentation"
 # from GitHub (prepare build must be allowed — add the key pnpm prints to the
