@@ -530,49 +530,17 @@ function renderProcessDivided(slide: PresentationSlide, tokens: ThemeTokens, pla
 }
 
 function addChart(slide: PresentationSlide, tokens: ThemeTokens, chart: ChartPlan, box: Box) {
-  const categories = chart.categories.slice(0, 8);
-  const series = chart.series.slice(0, 2);
-  const values = series.flatMap((item) => item.values.slice(0, categories.length));
-  const max = Math.max(1, ...values);
-  const min = chart.type === "line" ? Math.min(0, ...values) : 0;
-  const range = Math.max(1, max - min);
-  const palette = [tokens.accent, tokens.accent2];
-  const bottom = box.y + box.height - 30;
-  addRule(slide, { x: box.x, y: bottom }, { x: box.x + box.width, y: bottom }, tokens.muted, 1, 0.4);
-  if (chart.type === "bar") {
-    const groupWidth = box.width / Math.max(1, categories.length);
-    const barWidth = Math.min(28, (groupWidth - 10) / Math.max(1, series.length));
-    categories.forEach((category, categoryIndex) => {
-      series.forEach((item, seriesIndex) => {
-        const height = Math.max(1, (Math.abs(item.values[categoryIndex] ?? 0) / Math.max(1, max)) * (box.height - 72));
-        addRect(slide, tokens, {
-          x: box.x + categoryIndex * groupWidth + (groupWidth - barWidth * series.length) / 2 + seriesIndex * barWidth,
-          y: bottom - height, width: Math.max(4, barWidth - 3), height,
-        }, { fill: palette[seriesIndex] ?? tokens.accent, strokeOpacity: 0, radius: false });
-      });
-      addText(slide, tokens, category, { x: box.x + categoryIndex * groupWidth, y: bottom + 6, width: groupWidth, height: 20 }, {
-        size: 15, color: tokens.muted, align: "center", lineSpacing: 1, name: "Chart category",
-      });
-    });
-    return;
-  }
-  categories.forEach((category, index) => {
-    const x = box.x + (index / Math.max(1, categories.length - 1)) * box.width;
-    addText(slide, tokens, category, { x: x - 35, y: bottom + 6, width: 70, height: 20 }, {
-      size: 15, color: tokens.muted, align: "center", lineSpacing: 1, name: "Chart category",
-    });
-  });
-  series.forEach((item, seriesIndex) => {
-    const points = categories.map((_, index) => ({
-      x: box.x + (index / Math.max(1, categories.length - 1)) * box.width,
-      y: bottom - (((item.values[index] ?? 0) - min) / range) * (box.height - 68),
-    }));
-    for (let pointIndex = 1; pointIndex < points.length; pointIndex += 1) {
-      addRule(slide, points[pointIndex - 1]!, points[pointIndex]!, palette[seriesIndex] ?? tokens.accent, 2.5);
-    }
-    for (const point of points) {
-      addRect(slide, tokens, { x: point.x - 4, y: point.y - 4, width: 8, height: 8 }, { fill: palette[seriesIndex] ?? tokens.accent, strokeOpacity: 0, radius: false });
-    }
+  slide.addElement({
+    type: "chart",
+    name: "Chart",
+    chartType: chart.type,
+    categories: chart.categories.slice(0, 8),
+    series: chart.series.slice(0, 2).map((series, index) => ({
+      name: series.name,
+      values: series.values.slice(0, 8),
+      ...(index === 0 ? { color: tokens.accent } : index === 1 ? { color: tokens.accent2 } : {}),
+    })),
+    box,
   });
 }
 
@@ -604,9 +572,6 @@ function renderLedger(slide: PresentationSlide, tokens: ThemeTokens, plan: Slide
 function renderTable(slide: PresentationSlide, tokens: ThemeTokens, plan: SlidePlan, recipeId: string) {
   if (recipeId === "table-split-chart" && plan.chart) {
     addChart(slide, tokens, plan.chart, { x: tokens.margin, y: 154, width: 610, height: 286 });
-    addText(slide, tokens, plan.chart.series.slice(0, 2).map((series, index) => `${index === 0 ? "●" : "■"} ${series.name}`), {
-      x: 718, y: 184, width: 180, height: 96,
-    }, { size: 15, color: tokens.muted, lineSpacing: 1.16, name: "Chart legend" });
     return;
   }
   if (!plan.table) return;

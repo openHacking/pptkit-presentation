@@ -1,6 +1,6 @@
 {
   "name": "presentation-workflow",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "private": false,
   "type": "module",
   "description": "Browser-neutral guided presentation workflow contracts and runtime for PPTKit.",
@@ -28,7 +28,7 @@
     "url": "https://github.com/openHacking/pptkit-presentation/issues"
   },
   "dependencies": {
-    "@pptkit/core": "0.1.8",
+    "@pptkit/core": "0.1.9",
     "@xmldom/xmldom": "0.9.10",
     "fflate": "0.8.3"
   },

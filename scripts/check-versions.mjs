@@ -8,7 +8,7 @@ const workflow = readJson("packages/presentation-workflow/package.json");
 const preview = readJson("apps/preview/package.json");
 const starter = readJson("skills/pptkit-presentation/assets/starter/package.json");
 const issues = [];
-const engineVersion = "0.1.8";
+const engineVersion = "0.1.9";
 
 if (workflow.name !== "presentation-workflow") issues.push("workflow package name must be presentation-workflow");
 if (!/^\d+\.\d+\.\d+$/.test(workflow.version)) issues.push("workflow package version must use x.y.z format");

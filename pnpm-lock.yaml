@@ -36,14 +36,14 @@ importers:
   apps/preview:
     dependencies:
       '@pptkit/core':
-        specifier: 0.1.8
-        version: 0.1.8
+        specifier: 0.1.9
+        version: 0.1.9
       '@pptkit/pptx-exporter':
-        specifier: 0.1.8
-        version: 0.1.8
+        specifier: 0.1.9
+        version: 0.1.9
       '@pptkit/svg-renderer':
-        specifier: 0.1.8
-        version: 0.1.8
+        specifier: 0.1.9
+        version: 0.1.9
       presentation-workflow:
         specifier: workspace:*
         version: link:../../packages/presentation-workflow
@@ -74,8 +74,8 @@ importers:
   packages/presentation-workflow:
     dependencies:
       '@pptkit/core':
-        specifier: 0.1.8
-        version: 0.1.8
+        specifier: 0.1.9
+        version: 0.1.9
       '@xmldom/xmldom':
         specifier: 0.9.10
         version: 0.9.10
@@ -402,17 +402,17 @@ packages:
     engines: {node: '>=18'}
     hasBin: true
 
-  '@pptkit/core@0.1.8':
-    resolution: {integrity: sha512-xrmoU516u2OQa8Hhx8jrp+0ftkYMEKEvNr2/6N4BsXunrPhiUGtKoGWwKMTaVMfiAO8Ymo3WSeKp0iEdIueh0Q==}
+  '@pptkit/core@0.1.9':
+    resolution: {integrity: sha512-HhckK2ez2siKrtBjUY5FSJNzZOxsdlagU1jge7No850VH1y4miZeggHoNaD9PCHxQPr/J0JrXWK6/WpSpXaCJg==}
 
-  '@pptkit/layout@0.1.8':
-    resolution: {integrity: sha512-p+U9ncrbAEKR7AwN4mqcxdOAPsQKbzpSfgkMqYh+0OSDSIZ/tnDZJOdN00P/HeeP3ATBmrksDLrk8YUcfhcgdQ==}
+  '@pptkit/layout@0.1.9':
+    resolution: {integrity: sha512-F4X7w6bD3F33KmBH0mCiKkAJufHaufglJz98TAeHOeIBlx0gHNZOYBp+tMNBnZmX36/zR3elNXMZFqG3yXotMg==}
 
-  '@pptkit/pptx-exporter@0.1.8':
-    resolution: {integrity: sha512-t0KVd5JcSioECA7Cbg3hb1s7j7YSN5qdp2ALOTi8rQgq0yiOC88tezQ2J1LLnweRj0NAYabWPKOTU6Sx9V820Q==}
+  '@pptkit/pptx-exporter@0.1.9':
+    resolution: {integrity: sha512-cTPf5dJqQWB0vUhe8DaGKAxOZXN7jpNvgY368Ya6gj0n5WIevZPHqFbS4M0hLk5YcX5XjGlU/xH9WeCeIaRWCQ==}
 
-  '@pptkit/svg-renderer@0.1.8':
-    resolution: {integrity: sha512-gzD3jDL0uoFLDnk0QQ50Bp3yl7GWLbFxZE4wZeodYGIgnbwoQTakNLoCWySvU1CwJPKa2LxEN13yWz2IyRdu3Q==}
+  '@pptkit/svg-renderer@0.1.9':
+    resolution: {integrity: sha512-cnc+fuSqESGy66MODGikHtOR2S2pJRhHwPLhE7WHKFR5kW4Q1VaA2Nv6z4LsECB++gM+9oYRGsmw5gfOLwKQ5w==}
 
   '@rolldown/binding-android-arm64@1.1.5':
     resolution: {integrity: sha512-lZg8fqIv2v7FF237bwMgzGZEJvGL79/s5knJ/i6FmsGF4XXlzccZ4jb+TrFIxtSSxFtIpdsgrPZeMk1I9AFcyQ==}
@@ -525,10 +525,12 @@ packages:
   '@xmldom/xmldom@0.8.13':
     resolution: {integrity: sha512-KRYzxepc14G/CEpEGc3Yn+JKaAeT63smlDr+vjB8jRfgTBBI9wRj/nkQEO+ucV8p8I9bfKLWp37uHgFrbntPvw==}
     engines: {node: '>=10.0.0'}
+    deprecated: this version has critical issues, please update to the latest version
 
   '@xmldom/xmldom@0.9.10':
     resolution: {integrity: sha512-A9gOqLdi6cV4ibazAjcQufGj0B1y/vDqYrcuP6d/6x8P27gRS8643Dj9o1dEKtB6O7fwxb2FgBmJS2mX7gpvdw==}
     engines: {node: '>=14.6'}
+    deprecated: this version has critical issues, please update to the latest version
 
   adler-32@1.3.1:
     resolution: {integrity: sha512-ynZ4w/nUUv5rrsR8UUGoe1VC9hZj6V5hU9Qw1HlMDJGEJw5S7TfTErWTjMys6M7vr0YWcPqs3qAr4ss0nDfP+A==}
@@ -1158,22 +1160,22 @@ snapshots:
     dependencies:
       playwright: 1.61.1
 
-  '@pptkit/core@0.1.8': {}
+  '@pptkit/core@0.1.9': {}
 
-  '@pptkit/layout@0.1.8':
+  '@pptkit/layout@0.1.9':
     dependencies:
-      '@pptkit/core': 0.1.8
+      '@pptkit/core': 0.1.9
 
-  '@pptkit/pptx-exporter@0.1.8':
+  '@pptkit/pptx-exporter@0.1.9':
     dependencies:
-      '@pptkit/core': 0.1.8
-      '@pptkit/layout': 0.1.8
+      '@pptkit/core': 0.1.9
+      '@pptkit/layout': 0.1.9
       fflate: 0.8.3
 
-  '@pptkit/svg-renderer@0.1.8':
+  '@pptkit/svg-renderer@0.1.9':
     dependencies:
-      '@pptkit/core': 0.1.8
-      '@pptkit/layout': 0.1.8
+      '@pptkit/core': 0.1.9
+      '@pptkit/layout': 0.1.9
 
   '@rolldown/binding-android-arm64@1.1.5':
     optional: true

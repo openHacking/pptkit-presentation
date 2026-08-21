@@ -119,6 +119,7 @@ Use the exact `SlidePlan` field shapes below. Do not substitute older or display
 - `sourceRefs`: `[{ "id": "source-id", "slideNumbers": [1] }]`; use `id`, never `sourceId`.
 - `comparison`: `{ "left": { "heading": "Before", "items": ["..."] }, "right": { "heading": "After", "items": ["..."] } }`; both sides require `heading` and `items`.
 - `table`: `{ "headers": ["Column A", "Column B"], "rows": [["A1", "B1"]] }`; use `headers`, never `columns`.
+- `chart`: optional on `table` roles; `chart.type` supports `"bar"`, `"line"`, or `"pie"`. Pie charts require exactly one series.
 - `kpis`: `[{ "value": "72%", "label": "Retention", "detail": "Optional detail" }]`.
 - `image`: `{ "assetId": "declared-asset-id", "alt": "Description", "fit": "contain" }`.
 - `steps`: `[{ "title": "Prepare", "detail": "Optional supporting explanation" }, { "title": "Review" }]`; use 2–6 objects and never string entries.

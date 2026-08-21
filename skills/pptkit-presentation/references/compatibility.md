@@ -6,10 +6,10 @@
 | --- | --- |
 | Browser | modern HTTPS browser with IndexedDB, Blob, URL, fetch, typed arrays, structuredClone, Web Crypto, and storage estimation |
 | Node.js fallback | `>=20` |
-| `@pptkit/core` | exact `0.1.8` in the preview app and starter |
-| `@pptkit/pptx-exporter` | exact `0.1.8` in the preview app and starter |
-| `@pptkit/svg-renderer` | exact `0.1.8` in the preview app |
-| `presentation-workflow` | exact `0.1.5` in the preview app and starter |
+| `@pptkit/core` | exact `0.1.9` in the preview app and starter |
+| `@pptkit/pptx-exporter` | exact `0.1.9` in the preview app and starter |
+| `@pptkit/svg-renderer` | exact `0.1.9` in the preview app |
+| `presentation-workflow` | exact `0.1.6` in the preview app and starter |
 | TypeScript | exact version in the starter manifest |
 | PowerPoint/LibreOffice | manual compatibility review required for public release |
 

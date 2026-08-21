@@ -357,7 +357,7 @@ test("keeps Clean Business geometry square and restrained", () => {
   assert.deepEqual(roundedShapes, []);
 });
 
-test("keeps chart categories at the 15 pt data-detail floor", () => {
+test("renders a native chart element instead of shape-simulated bars", () => {
   const spec = deck("clean-business");
   spec.slides[1] = {
     id: "chart",
@@ -366,12 +366,46 @@ test("keeps chart categories at the 15 pt data-detail floor", () => {
     chart: { type: "bar", categories: ["Q1", "Q2", "Q3"], series: [{ name: "Teams", values: [12, 18, 27] }] },
   };
   const normalized = normalizePresentation(presentationOf(spec));
-  const labels = normalized.slides[1].elements.filter((element) => element.name === "Chart category");
-  assert.equal(labels.length, 3);
-  for (const label of labels) for (const paragraph of label.content) for (const run of paragraph.runs) {
-    assert.ok(run.style.fontSize >= 15);
-  }
+  const charts = normalized.slides[1].elements.filter((element) => element.type === "chart");
+  assert.equal(charts.length, 1);
+  assert.equal(charts[0].chartType, "bar");
+  assert.deepEqual(charts[0].categories, ["Q1", "Q2", "Q3"]);
+  assert.equal(charts[0].series.length, 1);
+  assert.equal(charts[0].series[0].name, "Teams");
+  assert.deepEqual(charts[0].series[0].values, [12, 18, 27]);
+  assert.equal(normalized.slides[1].elements.some((element) => element.name === "Chart category"), false);
+  assert.equal(normalized.slides[1].elements.some((element) => element.type === "shape"), false);
   assert.deepEqual(inspectStructure(normalized), []);
+});
+
+test("renders a native pie chart with a single series", () => {
+  const spec = deck("clean-business");
+  spec.slides[1] = {
+    id: "pie",
+    role: "table",
+    title: "Channel mix",
+    chart: { type: "pie", categories: ["Direct", "Search", "Social"], series: [{ name: "Share", values: [40, 35, 25] }] },
+  };
+  assert.deepEqual(validateDeckSpec(spec), []);
+  const normalized = normalizePresentation(presentationOf(spec));
+  const charts = normalized.slides[1].elements.filter((element) => element.type === "chart");
+  assert.equal(charts.length, 1);
+  assert.equal(charts[0].chartType, "pie");
+  assert.deepEqual(charts[0].categories, ["Direct", "Search", "Social"]);
+  assert.equal(charts[0].series.length, 1);
+  assert.deepEqual(inspectStructure(normalized), []);
+});
+
+test("rejects pie charts that do not declare exactly one series", () => {
+  const spec = deck("clean-business");
+  spec.slides[1] = {
+    id: "pie",
+    role: "table",
+    title: "Channel mix",
+    chart: { type: "pie", categories: ["A", "B"], series: [{ name: "One", values: [1, 2] }, { name: "Two", values: [3, 4] }] },
+  };
+  const issues = validateDeckSpec(spec);
+  assert.ok(issues.some((issue) => issue.code === "pie-single-series" && issue.severity === "error" && issue.slideId === "pie"));
 });
 
 test("warns instead of silently shrinking dense or internal workflow copy", () => {

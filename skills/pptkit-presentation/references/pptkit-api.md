@@ -22,13 +22,14 @@ Never import package `dist` files or private source paths.
 - Rectangles, rounded rectangles, ellipses, triangles, diamonds, arrows, and chevrons
 - Connectors with editable strokes and arrows
 - Groups and native editable tables
+- Native data-bound bar, line, and pie charts
 - Themes, layouts, placeholders, notes, actions, metadata, and accessibility
 
 ## Known v1 limits
 
 - No PPTX parser or existing-template fill
 - No browser/SVG preview renderer
-- No native data-bound charts or SmartArt
+- No SmartArt authoring
 - No environment-backed text measurement, automatic pagination, or general constraint solver
 - No animation, audio, or video authoring
 

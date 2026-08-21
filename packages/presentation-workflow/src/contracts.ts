@@ -156,7 +156,7 @@ export interface ComparisonPlan {
 }
 
 export interface ChartPlan {
-  type: "bar" | "line";
+  type: "bar" | "line" | "pie";
   categories: string[];
   series: Array<{ name: string; values: number[] }>;
 }

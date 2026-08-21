@@ -12,9 +12,9 @@
     "typecheck": "tsc -b tsconfig.json --pretty false"
   },
   "dependencies": {
-    "@pptkit/core": "0.1.8",
-    "@pptkit/pptx-exporter": "0.1.8",
-    "@pptkit/svg-renderer": "0.1.8",
+    "@pptkit/core": "0.1.9",
+    "@pptkit/pptx-exporter": "0.1.9",
+    "@pptkit/svg-renderer": "0.1.9",
     "presentation-workflow": "workspace:*"
   },
   "devDependencies": {

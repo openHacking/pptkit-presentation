@@ -25,6 +25,8 @@ function visibleStrings(plan: SlidePlan): string[] {
     ...(plan.comparison?.right.items ?? []),
     ...(plan.table?.headers ?? []),
     ...(plan.table?.rows.flat() ?? []),
+    ...(plan.chart?.categories ?? []),
+    ...(plan.chart?.series.map((series) => series.name) ?? []),
   ].filter((value): value is string => typeof value === "string" && value.length > 0);
 }
 
@@ -133,6 +135,7 @@ export function validateDeckSpec(spec: DeckSpec, availableAssetIds: ReadonlySet<
     if (slide.role === "process" && !slide.steps?.length) issues.push({ severity: "error", code: "missing-steps", message: "Process slide requires steps.", slideId: slide.id });
     if (slide.role === "table" && !slide.table && !slide.chart) issues.push({ severity: "error", code: "missing-data", message: "Table slide requires table or chart data.", slideId: slide.id });
     if (slide.chart && (slide.chart.series.length > 2 || slide.chart.categories.length > 8)) issues.push({ severity: "warning", code: "chart-density", message: "Charts render at most two series and eight categories.", slideId: slide.id });
+    if (slide.chart?.type === "pie" && slide.chart.series.length !== 1) issues.push({ severity: "error", code: "pie-single-series", message: "Pie charts require exactly one series.", slideId: slide.id });
     if ((slide.items?.length ?? 0) > 6 || (slide.steps?.length ?? 0) > 6 || (slide.kpis?.length ?? 0) > 4 || (slide.table?.rows.length ?? 0) > 8) {
       issues.push({ severity: "warning", code: "role-density", message: "The selected role contains more items than its readable layout supports; split the slide instead of truncating it.", slideId: slide.id });
     }
